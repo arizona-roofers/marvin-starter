@@ -244,6 +244,7 @@ MARVIN can monitor your calendar for patterns. Add detection rules here:
 | `/help` | Show commands and available integrations |
 | `/sync` | Get updates from the MARVIN template |
 | `/new-project` | Scaffold a new software project with gstack dev toolkit |
+| `/harden` | Run a systematic project hardening audit |
 
 ---
 

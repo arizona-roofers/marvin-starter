@@ -26,6 +26,9 @@ Display this reference:
 | /status   | Check integration & workspace health|
 | /help     | Show this help guide                |
 | /sync     | Get updates from MARVIN template    |
+| /skills   | Search & install agent skills       |
+| /new-project | Scaffold a new software project  |
+| /harden   | Systematic project hardening audit  |
 ```
 
 ### 2. Show Current Integrations

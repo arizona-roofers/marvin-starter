@@ -68,7 +68,7 @@ gh copilot suggest "run setup script for marvin"
 gh copilot suggest "start marvin AI assistant"
 ```
 
-The `.marvin/setup.sh` script handles the complete installation: prerequisites, workspace creation, profile setup, and shell aliases. Just follow the prompts to configure your AI Chief of Staff.
+The `.marvin/setup.sh` script handles the MARVIN workspace setup: prerequisites, workspace creation, profile setup, and shell aliases. It does **not** install the worker CLIs for The Boys — do that separately via [`docs/the-boys-setup.md`](docs/the-boys-setup.md).
 
 For additional integrations (Google Workspace, Slack, etc.), use:
 
@@ -82,7 +82,9 @@ gh copilot suggest "configure marvin integrations"
 
 Start your day with `/start` for a briefing: priorities, deadlines, progress toward goals. Work naturally throughout the day, MARVIN remembers everything. End with `/end` to save context for next time.
 
-Between sessions, `/update` saves progress without ending. `/sync` pulls new features from this template into your workspace.
+Between sessions, `/update` saves progress without ending.
+
+> **Note on `/sync`:** this starter is a fork of the upstream MARVIN template. `/sync` pulls updates from the upstream template, which knows nothing about The Boys layer — review sync diffs before applying so they don't clobber `CLAUDE.md`'s Operational Rules or `.claude/agents/the-boys.md`.
 
 ### Commands
 
