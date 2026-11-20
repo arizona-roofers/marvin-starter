@@ -46,6 +46,7 @@
     color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 11px; transition: background .4s;
   }
   .go[disabled] { opacity: .6; cursor: progress; }
+  #begin[disabled] { opacity: .35; cursor: default; filter: saturate(.4); }
   .path { font-family: ui-monospace, Consolas, monospace; font-size: 14px; color: var(--soft); overflow-wrap: anywhere; }
   .error { color: var(--bad); margin-top: 12px; font-weight: 600; }
   ul.done { list-style: none; padding: 0; margin: 0 0 16px; }
@@ -303,8 +304,8 @@
           <p class="new">Yours goes with you.</p><p class="sub">Start something at your desk and check on it from your phone.</p></div>
       </div>
       <div class="dots" id="dots" role="tablist" aria-label="Differences"></div>
-      <button class="go" id="begin" data-go="1">Get started</button>
-      <p class="hint" style="text-align:center;margin-top:12px">About five minutes.</p>
+      <button class="go" id="begin" data-go="1" disabled>Get started</button>
+      <p class="hint" id="begin-note" style="text-align:center;margin-top:12px">Five things to know first.</p>
     </div>
   </div>
 
@@ -600,9 +601,19 @@ function showFinale() {
 
 // The intro: one difference at a time, turning by itself.
 let slideAt = 0, slideTimer
+const slidesSeen = new Set()
 function showSlide(i, restart = true) {
   const slides = [...$('stage').children]
   slideAt = (i + slides.length) % slides.length
+  // Get started unlocks once every difference has been on screen long enough to read.
+  const showing = slideAt
+  setTimeout(() => {
+    if (slideAt !== showing || page !== 0) return
+    slidesSeen.add(showing)
+    const left = slides.length - slidesSeen.size
+    $('begin').disabled = left > 0
+    $('begin-note').textContent = left > 0 ? `${left} more to go.` : 'About five minutes from here.'
+  }, 2600)
   slides.forEach((el, k) => el.classList.toggle('on', k === slideAt))
   ;[...$('dots').children].forEach((dot, k) => dot.setAttribute('aria-selected', String(k === slideAt)))
   clearTimeout(slideTimer)
@@ -612,6 +623,8 @@ function startIntro() {
   const stage = $('stage')
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {  // no motion: show all five at once
     stage.closest('.intro').classList.add('static')
+    $('begin').disabled = false
+    $('begin-note').textContent = 'About five minutes from here.'
     return
   }
   $('dots').replaceChildren(...[...stage.children].map((_, k) => {
