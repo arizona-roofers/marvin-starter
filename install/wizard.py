@@ -1022,7 +1022,7 @@ def org_invite(email, folder=""):
             if line.startswith("ROOFR_EXTERNAL_TOKEN="):
                 token = line.split("=", 1)[1].strip()
     if not token:
-        return {"ok": False, "error": "This computer has no company access token yet. Tell Travis."}
+        return {"ok": False, "error": f"This computer has no company access token yet. Tell {CONTACT}."}
     request = urllib.request.Request(
         "https://roofr-search.vercel.app/api/external/github-invite", method="POST",
         data=json.dumps({"email": email}).encode("utf-8"),
@@ -1035,7 +1035,7 @@ def org_invite(email, folder=""):
             body = json.loads(error.read())
         except ValueError:
             body = {}
-        return {"ok": False, "error": body.get("detail") or "The invitation could not be sent. Tell Travis."}
+        return {"ok": False, "error": body.get("detail") or f"The invitation could not be sent. Tell {CONTACT}."}
     except (OSError, ValueError):
         return {"ok": False, "error": "The invitation could not be sent. Check your internet connection and try again."}
     return {"ok": bool(body.get("ok")), "status": body.get("status", ""), "detail": body.get("detail", "")}
