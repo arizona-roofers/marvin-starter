@@ -37,3 +37,9 @@ Thumbs.db
 
 # The boys — worker failure telemetry
 tools/boys-failures.log
+
+# Install files built by install/build-installer.py (they hold a token)
+dist/
+
+# The mod API types the Claude app writes
+mods/**/.claude-plugin/types/

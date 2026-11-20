@@ -4,6 +4,36 @@
 
 This is a team-ready starter built on [Sterling Chin's MARVIN template](https://github.com/SterlingChin/marvin-template), extended with a battle-tested **multi-AI swarm workflow ("The Boys")** that keeps your paid Claude usage lean by fanning research and drafting out to free CLI workers (Codex + Gemini-class via Antigravity).
 
+## Install (Arizona Roofers staff)
+
+One file, about five minutes, Windows or Mac. You need a Claude seat on the company plan first (ask Travis).
+
+1. Open the install file Travis sent you.
+   - **Windows:** double-click `Install Assistant.cmd`. If Windows shows a blue "protected your PC" box, click **More info**, then **Run anyway**.
+   - **Mac:** unzip `Install Assistant (Mac).zip`, then **right-click** the file inside and choose **Open** (a plain double-click is blocked the first time).
+2. It installs Git, Python, Claude Code and the Claude app, then opens a setup page in your browser.
+3. On the setup page, pick your assistant's name (Jarvis, HAL, WALL-E, or your own), its color, and how it should talk. Click **Set up**.
+4. Open the Claude app, sign in with your work email, click the **Code** tab, choose the folder the page shows, and type `/start`.
+
+What you get: your assistant in its own folder, chats colored by topic with a matching shape on each title, no permission prompts, remote control from your phone, and read-only access to the Roofr job pipeline.
+
+Running the install file again is safe. It updates the tools and keeps your notes.
+
+No install file? Paste one line instead, and the setup page will ask for the Roofr token.
+
+- Windows (PowerShell): `irm https://raw.githubusercontent.com/arizona-roofers/marvin-starter/master/install/install.ps1 | iex`
+- Mac (Terminal): `curl -fsSL https://raw.githubusercontent.com/arizona-roofers/marvin-starter/master/install/install.sh | bash`
+
+### For Travis: building the install file
+
+```bash
+python install/build-installer.py        # reads ROOFR_EXTERNAL_TOKEN from .env
+```
+
+This writes `dist/Install Assistant.cmd` and `dist/Install Assistant (Mac).zip` with the Roofr token inside. `dist/` is never committed. Share the files from Google Drive limited to arizonaroofers.com. To change the token, rebuild and resend.
+
+---
+
 ## What this starter adds on top of the vanilla template
 
 - **The Boys protocol** (`.claude/agents/the-boys.md`) — Claude acts as PM; 5+ free AI workers (Gemini via Antigravity OAuth, Codex via ChatGPT) do the exploration, research, and drafting in parallel; a free Gemini reviewer synthesizes; you approve before any code lands.

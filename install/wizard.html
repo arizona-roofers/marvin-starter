@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up your assistant</title>
+<style>
+  :root {
+    --bg: #f4f1ec; --card: #fffdf9; --ink: #1f1b16; --soft: #6b6359; --line: #ddd5c8;
+    --accent: #2f86c9; --accent-ink: #fff; --ok: #2f7d4a; --bad: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161a; --card: #1d2026; --ink: #eef0f3; --soft: #a2a8b3; --line: #343944; --ok: #6cc48a; --bad: #ff8a80; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 620px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; }
+  h1 span { color: var(--accent); transition: color .4s; }
+  .lede { color: var(--soft); margin: 0 0 24px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--soft); margin: 0 0 14px; }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; }
+  label:first-of-type { margin-top: 0; }
+  .hint { font-weight: 400; color: var(--soft); font-size: 14px; margin: 4px 0 0; }
+  select, input[type=text] {
+    width: 100%; padding: 11px 12px; font: inherit; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+  }
+  select:focus, input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+  .swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+  .swatches button {
+    width: 44px; height: 44px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; padding: 0;
+  }
+  .swatches button[aria-pressed=true] { border-color: var(--ink); }
+  .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; font-weight: 400; }
+  .check input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+  .check b { display: block; }
+  .go {
+    width: 100%; padding: 15px; font: inherit; font-weight: 700; font-size: 17px; cursor: pointer;
+    color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 11px; transition: background .4s;
+  }
+  .go[disabled] { opacity: .6; cursor: progress; }
+  .path { font-family: ui-monospace, Consolas, monospace; font-size: 14px; color: var(--soft); overflow-wrap: anywhere; }
+  .error { color: var(--bad); margin-top: 12px; font-weight: 600; }
+  ul.done { list-style: none; padding: 0; margin: 0 0 16px; }
+  ul.done li { padding-left: 26px; position: relative; margin-bottom: 6px; }
+  ul.done li::before { content: "\2713"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
+  ol.next { padding-left: 22px; margin: 0; }
+  ol.next li { margin-bottom: 8px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div id="form">
+    <h1>Meet <span id="title-name">Jarvis</span>, your AI assistant</h1>
+    <p class="lede">Six choices and you are done. Everything can be changed later.</p>
+
+    <section>
+      <h2>Your assistant</h2>
+      <label for="name">What should it be called?</label>
+      <select id="name"></select>
+      <input type="text" id="custom" placeholder="Type a name" maxlength="30" hidden aria-label="Custom name" style="margin-top:8px">
+
+      <label>Its color</label>
+      <div class="swatches" id="colors" role="group" aria-label="Assistant color"></div>
+      <p class="hint">Chats about the assistant itself use this color. Arizona Roofers chats are orange, personal chats green.</p>
+
+      <label for="style">How should it talk to you?</label>
+      <select id="style"></select>
+    </section>
+
+    <section>
+      <h2>About you</h2>
+      <div class="row">
+        <div>
+          <label for="user">Your first name</label>
+          <input type="text" id="user" autocomplete="given-name" maxlength="40">
+        </div>
+        <div>
+          <label for="role">Your role</label>
+          <select id="role"></select>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>How it works</h2>
+      <label for="mode">Permissions</label>
+      <select id="mode"></select>
+      <p class="hint">Bypass means it never stops mid-task to ask "is this OK?". It still checks with you before sending messages or deleting things.</p>
+
+      <label class="check"><input type="checkbox" id="remote" checked>
+        <span><b>Remote control</b>Pick up any chat from the Claude app on your phone.</span></label>
+      <label class="check"><input type="checkbox" id="tint" checked>
+        <span><b>Color modes</b>Each chat gets a background color and a colored shape on its title, by topic.</span></label>
+
+      <div id="token-row" hidden>
+        <label for="token">Roofr access token</label>
+        <input type="text" id="token" autocomplete="off" placeholder="Paste the token Travis sent you">
+        <p class="hint">Leave blank to add it later.</p>
+      </div>
+    </section>
+
+    <p class="path">Folder: <span id="folder"></span></p>
+    <button class="go" id="go">Set up Jarvis</button>
+    <p class="error" id="error" role="alert" hidden></p>
+  </div>
+
+  <div id="finished" hidden>
+    <h1><span id="done-name">Jarvis</span> is ready</h1>
+    <p class="lede">Here is what was set up.</p>
+    <section><ul class="done" id="log"></ul></section>
+    <section>
+      <h2>Start your first chat</h2>
+      <ol class="next">
+        <li>Open the <b>Claude</b> app and sign in with your work email.</li>
+        <li>Click the <b>Code</b> tab, then choose this folder:<br><span class="path" id="done-folder"></span></li>
+        <li>Type <b>/start</b> and press Enter.</li>
+      </ol>
+    </section>
+    <button class="go" id="open">Open Claude and the folder</button>
+    <p class="hint" id="open-note" style="text-align:center;margin-top:12px">You can close this tab when you are done.</p>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id)
+let options = {}, color = 'Blue'
+
+const fill = (select, items) => {
+  for (const [value, text] of items) select.add(new Option(text, value))
+}
+const slug = name => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'assistant'
+const chosenName = () => ($('name').value === '__custom' ? $('custom').value.trim() : $('name').value) || 'Marvin'
+
+function refresh() {
+  const name = chosenName()
+  $('custom').hidden = $('name').value !== '__custom'
+  $('title-name').textContent = name
+  $('go').textContent = `Set up ${name}`
+  $('folder').textContent = options.home + options.sep + slug(name)
+  document.documentElement.style.setProperty('--accent', options.colors[color])
+  for (const b of $('colors').children) b.setAttribute('aria-pressed', String(b.dataset.color === color))
+}
+
+async function load() {
+  options = await (await fetch('/options')).json()
+  fill($('name'), [...options.names.map(n => [n, n]), ['__custom', 'Something else…']])
+  fill($('style'), options.styles.map(s => [s, s]))
+  fill($('role'), options.roles.map(r => [r, r]))
+  fill($('mode'), Object.entries(options.modes))
+  $('user').value = options.user
+  $('token-row').hidden = options.hasToken
+  for (const [name, hex] of Object.entries(options.colors)) {
+    const b = document.createElement('button')
+    b.type = 'button'; b.dataset.color = name; b.style.background = hex; b.title = name
+    b.setAttribute('aria-label', name)
+    b.onclick = () => { color = name; refresh() }
+    $('colors').append(b)
+  }
+  $('name').onchange = () => { refresh(); if ($('name').value === '__custom') $('custom').focus() }
+  $('custom').oninput = refresh
+  refresh()
+}
+
+let result
+$('go').onclick = async () => {
+  $('error').hidden = true
+  $('go').disabled = true
+  $('go').textContent = 'Setting up…'
+  try {
+    const response = await fetch('/apply', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assistant: chosenName(), color, style: $('style').value, user: $('user').value, role: $('role').value,
+        mode: $('mode').value, remote: $('remote').checked, colors: $('tint').checked, token: $('token').value,
+      }),
+    })
+    result = await response.json()
+    if (!result.ok) throw new Error(result.error || 'Setup did not finish.')
+    $('done-name').textContent = result.assistant
+    $('done-folder').textContent = result.folder
+    $('log').replaceChildren(...result.log.map(line => Object.assign(document.createElement('li'), { textContent: line })))
+    $('form').hidden = true
+    $('finished').hidden = false
+    window.scrollTo(0, 0)
+  } catch (error) {
+    $('error').textContent = `${error.message} Nothing is broken: fix it and click again, or send Travis a screenshot.`
+    $('error').hidden = false
+    $('go').disabled = false
+    refresh()
+  }
+}
+
+$('open').onclick = async () => {
+  const opened = await (await fetch('/open', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: result.folder }),
+  })).json()
+  $('open-note').textContent = opened.claude
+    ? 'Claude is opening. You can close this tab.'
+    : 'The folder is open. Claude did not start by itself: open it from your Start menu or Applications.'
+  fetch('/quit', { method: 'POST' })
+}
+
+load()
+</script>
+</body>
+</html>
