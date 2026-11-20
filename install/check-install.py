@@ -80,10 +80,10 @@ os.environ["PATH"] = str(home / ".local" / "bin") + os.pathsep + os.environ.get(
 claude = shutil.which("claude")
 check("Claude Code installed", claude is not None)
 if claude:
-    version = subprocess.run([claude, "--version"], capture_output=True, text=True)
+    version = subprocess.run([claude, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     check("Claude Code runs (" + version.stdout.strip()[:40] + ")", version.returncode == 0)
     valid = subprocess.run([claude, "plugin", "validate", str(work / ".mods" / "session-tint")],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
     check("Claude accepts the color mod", valid.returncode == 0)
 check("git on this machine", shutil.which("git") is not None)
 note("node on this machine", shutil.which("node") is not None)

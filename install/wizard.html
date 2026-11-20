@@ -71,15 +71,23 @@
   table.cmds tr:first-child td { border-top: 0; }
   table.cmds td:first-child { white-space: nowrap; padding-right: 16px; }
   code { font-family: ui-monospace, Consolas, monospace; font-weight: 700; color: var(--accent); }
+  .progress { color: var(--soft); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 10px; }
+  .nav { display: flex; gap: 12px; justify-content: space-between; margin-top: 4px; }
+  .nav .go { width: auto; min-width: 150px; padding: 13px 22px; }
+  .nav .go.next, .nav #go, .nav #finish { margin-left: auto; }
+  details.what { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 20px; margin-bottom: 16px; }
+  details.what summary { cursor: pointer; font-weight: 600; }
+  details.what ul.done { margin-top: 12px; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
-  <div id="form">
-    <h1>Meet <span id="title-name">Jarvis</span>, your AI assistant</h1>
-    <p class="lede">A minute of choices and you are done. Everything can be changed later.</p>
+  <p class="progress" id="progress" aria-live="polite"></p>
 
+  <div class="page" data-page="1">
+    <h1>Meet <span id="title-name">Jarvis</span>, your AI assistant</h1>
+    <p class="lede">A few quick choices. Everything can be changed later.</p>
     <section>
       <h2>Your assistant</h2>
       <label for="name">What should it be called?</label>
@@ -93,26 +101,30 @@
       <label for="style">How should it talk to you?</label>
       <select id="style"></select>
     </section>
+    <div class="nav"><span></span><button class="go next" data-go="2">Next</button></div>
+  </div>
 
+  <div class="page" data-page="2" hidden>
+    <h1>About you</h1>
+    <p class="lede">So <span class="the-name">Jarvis</span> knows who it works for.</p>
     <section>
-      <h2>About you</h2>
-      <div class="row">
-        <div>
-          <label for="user">Your first name</label>
-          <input type="text" id="user" autocomplete="given-name" maxlength="40">
-        </div>
-        <div>
-          <label for="role">Your role</label>
-          <select id="role"></select>
-        </div>
-      </div>
+      <label for="user">Your first name</label>
+      <input type="text" id="user" autocomplete="given-name" maxlength="40">
+
+      <label for="role">Your role</label>
+      <select id="role"></select>
+
       <label for="roofr">Your name as it appears in Roofr <span class="hint" style="display:inline">(optional)</span></label>
       <input type="text" id="roofr" maxlength="60" placeholder="First and last name">
       <p class="hint">With this, "show me my jobs" works from day one.</p>
     </section>
+    <div class="nav"><button class="go quiet back" data-go="1">Back</button><button class="go next" data-go="3">Next</button></div>
+  </div>
 
+  <div class="page" data-page="3" hidden>
+    <h1>How it works</h1>
+    <p class="lede">These are the settings we recommend. Leave them unless you have a reason.</p>
     <section>
-      <h2>How it works</h2>
       <label for="mode">Permissions</label>
       <select id="mode"></select>
       <p class="hint">Bypass means it never stops mid-task to ask "is this OK?". It still checks with you before sending messages or deleting things.</p>
@@ -128,42 +140,41 @@
         <p class="hint">Leave blank to add it later.</p>
       </div>
     </section>
-
     <p class="path">Folder: <span id="folder"></span></p>
-    <button class="go" id="go">Set up Jarvis</button>
+    <div class="nav"><button class="go quiet back" data-go="2">Back</button><button class="go" id="go">Set up Jarvis</button></div>
     <p class="error" id="error" role="alert" hidden></p>
   </div>
 
-  <div id="finished" hidden>
+  <div class="page" data-page="4" hidden>
     <h1><span id="done-name">Jarvis</span> is ready</h1>
-    <p class="lede">Here is what was set up.</p>
-    <section><ul class="done" id="log"></ul></section>
+    <p class="lede">Now open Claude and say hello.</p>
+    <section id="account">
+      <h2>Your Claude account</h2>
+      <p id="acct-text" style="margin:0">Checking whether you are already signed in…</p>
+      <button class="step" id="acct-login" style="margin-top:12px" hidden>Sign in to Claude</button>
+    </section>
+    <button class="go" id="open" disabled>Checking for the Claude app…</button>
+    <p class="hint" id="open-note" style="text-align:center;margin:12px 0 20px"></p>
     <section>
-      <h2>Start your first chat</h2>
+      <h2>Once Claude is open</h2>
       <ol class="next">
-        <li>Open the <b>Claude</b> app and sign in with your work email.</li>
+        <li>Sign in with your work email.</li>
         <li>Click the <b>Code</b> tab, then <b>Select folder</b> and choose this one:<br><span class="path" id="done-folder"></span>
           <button type="button" class="copy" id="copy-folder">Copy</button></li>
         <li>Type <b>/start</b> and press Enter.</li>
       </ol>
     </section>
-    <section>
-      <h2>The commands you will use</h2>
-      <table class="cmds">
-        <tr><td><code>/start</code></td><td>First thing in a new chat. It reads its notes and tells you where things stand.</td></tr>
-        <tr><td><code>/update</code></td><td>A quick checkpoint in the middle of work.</td></tr>
-        <tr><td><code>/save</code></td><td>When you are done. It saves a summary so tomorrow picks up from here.</td></tr>
-        <tr><td><code>/help</code></td><td>Lists every command.</td></tr>
-        <tr><td><code>/tint</code></td><td>Changes this chat's color.</td></tr>
-      </table>
-      <p class="hint">Everything else is plain English. The full list is in <b>START-HERE.md</b> in your folder.</p>
-    </section>
-    <button class="go" id="open" disabled>Checking for the Claude app…</button>
-    <p class="hint" id="open-note" style="text-align:center;margin:12px 0 24px"></p>
+    <details class="what">
+      <summary>What was set up</summary>
+      <ul class="done" id="log"></ul>
+    </details>
+    <div class="nav"><span></span><button class="go next" data-go="5">Next: connect Chrome</button></div>
+  </div>
 
+  <div class="page" data-page="5" hidden>
+    <h1>Connect Chrome</h1>
+    <p class="lede">This lets <span class="the-name">Jarvis</span> work in web pages for you. Three clicks, in order.</p>
     <section>
-      <h2>Connect Chrome</h2>
-      <p class="hint" style="margin:0 0 12px">This lets your assistant work in web pages for you. Three clicks, in order.</p>
       <ol class="next steps">
         <li><button class="step" data-page="google">Sign in to Google</button>
           Use your work email. If Chrome offers to sign you in to Chrome too, say yes: the Roofr Assist extension then installs itself.</li>
@@ -173,9 +184,36 @@
           Use the same work email. Then click the puzzle piece at the top right of Chrome and pin <b>Claude</b>.</li>
       </ol>
     </section>
-    <section id="github">
-      <h2>Back up to GitHub (optional)</h2>
-      <p class="hint" style="margin:0 0 12px">GitHub keeps a private copy of your assistant's notes, so nothing is lost if this computer is. Skip it if you are not sure.</p>
+    <div class="nav"><button class="go quiet back" data-go="4">Back</button><button class="go next" data-go="6">Next</button></div>
+  </div>
+
+  <div class="page" data-page="6" hidden>
+    <h1>The commands you will use</h1>
+    <p class="lede">Three shortcuts cover most days. Everything else is plain English.</p>
+    <section>
+      <table class="cmds">
+        <tr><td><code>/start</code></td><td>First thing in a new chat. It reads its notes and tells you where things stand.</td></tr>
+        <tr><td><code>/update</code></td><td>A quick checkpoint in the middle of work.</td></tr>
+        <tr><td><code>/save</code></td><td>When you are done. It saves a summary so tomorrow picks up from here.</td></tr>
+      </table>
+      <p class="hint">The full list is in <b>START-HERE.md</b> in your folder, or type <code>/help</code>.</p>
+    </section>
+    <div class="nav"><button class="go quiet back" data-go="5">Back</button><button class="go next" data-go="7">Next</button></div>
+  </div>
+
+  <div class="page" data-page="7" hidden>
+    <h1>Last things</h1>
+    <p class="lede">None of these are required today.</p>
+    <section>
+      <h2>When you have a minute</h2>
+      <ol class="next">
+        <li><b>Phone:</b> install the Claude app on your phone and sign in with the same work email. Your chats show up there.</li>
+        <li><b>Email and calendar:</b> in the Claude app, open Settings, then Connectors, and connect Gmail, Google Calendar and Google Drive.</li>
+      </ol>
+    </section>
+    <details class="what" id="github">
+      <summary>Back up to GitHub (optional)</summary>
+      <p class="hint" style="margin:12px 0">GitHub keeps a private copy of your assistant's notes, so nothing is lost if this computer is. Skip it if you are not sure.</p>
       <p id="gh-missing" class="hint" hidden>The GitHub tool is not on this computer, so this step is not available. Ask Travis if you want it.</p>
       <ol class="next steps" id="gh-steps">
         <li><button class="step" id="gh-connect">Connect my GitHub</button>
@@ -185,16 +223,9 @@
         <li><button class="step" id="gh-backup" disabled>Back up my assistant</button>
           <span id="gh-backup-note">Makes a private copy only you can see. Your Roofr token is never included.</span></li>
       </ol>
-    </section>
-    <section>
-      <h2>Two more things, when you have a minute</h2>
-      <ol class="next">
-        <li><b>Phone:</b> install the Claude app on your phone and sign in with the same work email. Your chats show up there.</li>
-        <li><b>Email and calendar:</b> in the Claude app, open Settings, then Connectors, and connect Gmail, Google Calendar and Google Drive.</li>
-      </ol>
-    </section>
-    <button class="go quiet" id="finish">I'm done</button>
-    <p class="hint" id="finish-note" style="text-align:center;margin-top:12px">Keep this tab open until you have finished the steps above.</p>
+    </details>
+    <div class="nav"><button class="go quiet back" data-go="6">Back</button><button class="go" id="finish">I'm done</button></div>
+    <p class="hint" id="finish-note" style="text-align:center;margin-top:12px"></p>
   </div>
 </main>
 <script>
@@ -207,8 +238,23 @@ const fill = (select, items) => {
 const slug = name => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'assistant'
 const chosenName = () => ($('name').value === '__custom' ? $('custom').value.trim() : $('name').value) || 'Marvin'
 
+// One page at a time. Pages 1-3 are the choices, 4-7 come after setup has run.
+let page = 1
+function show(n) {
+  page = n
+  for (const el of document.querySelectorAll('.page')) el.hidden = Number(el.dataset.page) !== n
+  $('progress').textContent = n <= 3 ? `Step ${n} of 3` : `Almost there: ${n - 3} of 4`
+  window.scrollTo(0, 0)
+  const first = document.querySelector(`.page[data-page="${n}"] h1`)
+  if (first) { first.tabIndex = -1; first.focus({ preventScroll: true }) }
+}
+for (const button of document.querySelectorAll('button[data-go]')) {
+  button.onclick = () => show(Number(button.dataset.go))
+}
+
 function refresh() {
   const name = chosenName()
+  for (const el of document.querySelectorAll('.the-name')) el.textContent = name
   $('custom').hidden = $('name').value !== '__custom'
   $('title-name').textContent = name
   $('go').textContent = `Set up ${name}`
@@ -255,11 +301,11 @@ $('go').onclick = async () => {
     $('done-name').textContent = result.assistant
     $('done-folder').textContent = result.folder
     $('log').replaceChildren(...result.log.map(line => Object.assign(document.createElement('li'), { textContent: line })))
-    $('form').hidden = true
-    $('finished').hidden = false
+    for (const el of document.querySelectorAll('.the-name')) el.textContent = result.assistant
+    show(4)
     post('/github/status').then(showGithub)
     post('/app/status').then(showApp)
-    window.scrollTo(0, 0)
+    post('/account/status').then(showAccount)
   } catch (error) {
     $('error').textContent = `${error.message} Nothing is broken: fix it and click again, or send Travis a screenshot.`
     $('error').hidden = false
@@ -267,6 +313,30 @@ $('go').onclick = async () => {
     refresh()
   }
 }
+
+// Is there already a Claude account on this computer, and is it the work one?
+function showAccount(a) {
+  const text = $('acct-text'), button = $('acct-login')
+  button.hidden = true
+  if (a.state === 'work') {
+    text.textContent = `\u2713 Already signed in as ${a.email}${a.org ? ` (${a.org})` : ''}. Use this same account in the Claude app.`
+  } else if (a.state === 'other') {
+    text.textContent = `This computer is signed in to Claude as ${a.email}, which is not your work email. `
+      + 'Sign in with your arizonaroofers.com email so you are on the company plan.'
+    button.hidden = false
+    button.textContent = 'Sign in with my work email'
+  } else if (a.state === 'signed-out') {
+    text.textContent = a.waiting
+      ? 'A sign-in page opened in your browser. Finish it there, with your work email.'
+      : 'You are not signed in to Claude yet. Use your arizonaroofers.com email.'
+    button.hidden = a.waiting
+    button.textContent = 'Sign in to Claude'
+  } else {
+    text.textContent = 'You will sign in when the Claude app opens. Use your arizonaroofers.com email.'
+  }
+  if (a.waiting && page === 4) setTimeout(async () => showAccount(await post('/account/status')), 3000)
+}
+$('acct-login').onclick = async () => showAccount(await post('/account/login'))
 
 // The one big button: get the Claude app if it is missing, then open it.
 let appState = 'unknown'
@@ -277,7 +347,7 @@ function showApp(status) {
   if (status.state === 'installed') {
     open.disabled = false
     open.textContent = 'Open Claude'
-    if (!$('open-note').dataset.opened) $('open-note').textContent = 'Then follow the three steps above.'
+    if (!$('open-note').dataset.opened) $('open-note').textContent = 'Then follow the three steps below.'
   } else if (status.state === 'installing') {
     open.disabled = true
     open.textContent = 'Getting the Claude app…'
@@ -297,7 +367,7 @@ $('open').onclick = async () => {
     const opened = await post('/open')
     $('open-note').dataset.opened = '1'
     $('open-note').textContent = opened.claude
-      ? 'Claude is opening. Follow the three steps above, then come back here for Chrome.'
+      ? 'Claude is opening. Follow the three steps below, then come back here and click Next.'
       : 'Claude did not open by itself. Find it in your Applications folder or Start menu.'
   } else if (appState === 'failed') {
     await post('/chrome', { page: 'claude-download' })
@@ -372,9 +442,10 @@ $('finish').onclick = async () => {
   await fetch('/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
   $('finish').disabled = true
   $('finish-note').textContent = 'Setup is finished. You can close this tab and the setup window.'
+  for (const el of document.querySelectorAll('.page[data-page="7"] .back')) el.disabled = true
 }
 
-load()
+load().then(() => show(1))
 </script>
 </body>
 </html>

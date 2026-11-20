@@ -786,7 +786,7 @@ def gh(*args, cwd=None, timeout=60):
     if exe is None:
         return False, "GitHub tool not installed"
     try:
-        done = subprocess.run([exe, *args], cwd=cwd, capture_output=True, text=True, timeout=timeout,
+        done = subprocess.run([exe, *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
                               stdin=subprocess.DEVNULL)
         return done.returncode == 0, (done.stdout + done.stderr).strip()
     except (OSError, subprocess.TimeoutExpired) as error:
@@ -811,7 +811,7 @@ def github_refresh():
     git = shutil.which("git")
     if git:
         for key, value in (("user.name", login), ("user.email", f"{user_id}+{login}@users.noreply.github.com")):
-            has = subprocess.run([git, "config", "--global", key], capture_output=True, text=True)
+            has = subprocess.run([git, "config", "--global", key], capture_output=True, text=True, encoding="utf-8", errors="replace")
             if not has.stdout.strip():
                 subprocess.run([git, "config", "--global", key, value], check=False)
 
@@ -829,7 +829,8 @@ def github_connect():
         proc = subprocess.Popen(
             [exe, "auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web",
              "--scopes", "repo"],
-            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            encoding="utf-8", errors="replace")
     except OSError as error:
         GITHUB.update(state="none", error=str(error))
         return
@@ -865,7 +866,7 @@ def github_backup(folder):
         (workspace / ".gitignore").write_text(ignore.rstrip("\n") + "\n.env\n", encoding="utf-8")
 
     def run(*args):
-        return subprocess.run([git, *args], cwd=str(workspace), capture_output=True, text=True)
+        return subprocess.run([git, *args], cwd=str(workspace), capture_output=True, text=True, encoding="utf-8", errors="replace")
 
     if not (workspace / ".git").exists():
         run("init", "-q")
@@ -939,7 +940,9 @@ def claude_app_installed():
 
 def _download(url, dest):
     import urllib.request
-    request = urllib.request.Request(url, headers={"User-Agent": "assistant-setup"})
+    # The download site turns away clients that do not look like a browser.
+    request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                                                                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"})
     with urllib.request.urlopen(request, timeout=120) as reply, open(dest, "wb") as out:
         shutil.copyfileobj(reply, out)
 
@@ -998,6 +1001,60 @@ def claude_app_status():
         CLAUDE_APP["state"] = "installed" if claude_app_installed() else (
             "failed" if CLAUDE_APP["state"] == "failed" else "missing")
     return dict(CLAUDE_APP, ok=True, system="mac" if IS_MAC else "windows" if IS_WINDOWS else "other")
+
+
+# --- The person's Claude account ---------------------------------------------------
+
+WORK_DOMAIN = "arizonaroofers.com"
+LOGIN = {"running": False}
+
+
+def claude_cli():
+    return shutil.which("claude") or next(
+        (str(p) for p in (Path.home() / ".local" / "bin" / "claude", Path.home() / ".local" / "bin" / "claude.exe")
+         if p.exists()), None)
+
+
+def claude_account():
+    """Who Claude Code is signed in as on this computer, from `claude auth status`."""
+    exe = claude_cli()
+    if exe is None:
+        return {"ok": True, "state": "no-claude"}
+    try:
+        done = subprocess.run([exe, "auth", "status"], capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=30, stdin=subprocess.DEVNULL)
+        info = json.loads(done.stdout[done.stdout.index("{"):])
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return {"ok": True, "state": "signed-out", "waiting": LOGIN["running"]}
+    if not info.get("loggedIn"):
+        return {"ok": True, "state": "signed-out", "waiting": LOGIN["running"]}
+    email = str(info.get("email") or "")
+    return {
+        "ok": True,
+        "state": "work" if email.lower().endswith("@" + WORK_DOMAIN) else "other",
+        "email": email,
+        "org": str(info.get("orgName") or ""),
+        "plan": str(info.get("subscriptionType") or ""),
+        "waiting": LOGIN["running"],
+    }
+
+
+def claude_login():
+    """Start Claude's own sign-in (it opens the browser). The page polls for the result."""
+    exe = claude_cli()
+    if exe is None or LOGIN["running"]:
+        return
+    LOGIN["running"] = True
+
+    def work():
+        try:
+            subprocess.run([exe, "auth", "login", "--claudeai"], stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        LOGIN["running"] = False
+
+    threading.Thread(target=work, daemon=True).start()
 
 
 PAGE = (Path(__file__).resolve().parent / "wizard.html")
@@ -1063,6 +1120,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.send({"ok": False, "error": f"{type(error).__name__}: {error}"})
         elif self.path == "/open":
             self.send({"ok": True, "claude": open_claude()})
+        elif self.path == "/account/status":
+            self.send(claude_account())
+        elif self.path == "/account/login":
+            claude_login()
+            self.send(dict(claude_account(), waiting=True))
         elif self.path == "/app/status":
             self.send(claude_app_status())
         elif self.path == "/app/install":
