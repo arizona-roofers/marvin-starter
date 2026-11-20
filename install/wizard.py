@@ -138,7 +138,7 @@ and still say MARVIN. Those instructions are addressed to you: read MARVIN as {n
 2. **Maintain continuity** - Remember context across sessions
 3. **Track progress** - Monitor goals and priorities
 4. **Thought partner** - Push back on weak ideas and pressure-test thinking
-5. **Save before compact** - When context is running low, suggest `/end` to save
+5. **Save before compact** - When context is running low, suggest `/save` to save
 
 ### Personality
 {STYLES.get(a["style"], STYLES["Professional"])}
@@ -188,7 +188,21 @@ and today's session log (or yesterday's), then give a briefing.
 
 **On checkpoint (`/update`):** append brief notes to today's session log.
 
-**On close (`/end`):** full summary, update the session log and state.
+**On close (`/save`):** full summary, update the session log and state.
+
+### Slash commands
+
+| Command | What it does |
+|---------|--------------|
+| `/start` | Start the day: reads the notes and gives a briefing |
+| `/update` | Quick checkpoint in the middle of work |
+| `/save` | Save everything when done, so the next chat picks up from here |
+| `/help` | List every command and connected tool |
+| `/report` | Weekly summary of the work done |
+| `/status` | Check that everything is connected and healthy |
+| `/tint <topic>` | Change this chat's color |
+
+If {a["user"]} seems unsure what to type, point them to `START-HERE.md`.
 
 ### Color modes
 
@@ -201,6 +215,52 @@ edit `.mods/session-tint/hooks/topics.js`.
 ---
 
 *Set up: {today}*
+"""
+
+
+def start_here(name):
+    return f"""# Start here
+
+{name} is your AI assistant. You talk to it in plain English. The commands below
+are shortcuts: type one in the chat box and press Enter.
+
+## The three you will use every day
+
+| Type this | When | What happens |
+|-----------|------|--------------|
+| `/start` | First thing, in a new chat | {name} reads its notes and tells you where things stand |
+| `/update` | In the middle of work | A quick checkpoint, so nothing is lost |
+| `/save` | When you are done | {name} writes a summary and saves it, so tomorrow's chat picks up from here |
+
+Think of `/start` and `/save` as bookends. Everything in between is just conversation.
+
+## Handy extras
+
+| Type this | What happens |
+|-----------|--------------|
+| `/help` | Lists every command and what {name} is connected to |
+| `/report` | A summary of your week |
+| `/status` | Checks that everything is connected and working |
+| `/tint azr` | Colors this chat. Try `azr`, `personal`, `ava`, `scheduler`, `dialer`, or `off` |
+| `/clear` | Wipes the current chat and starts fresh (run `/save` first) |
+
+## Things to try
+
+- "How many jobs did we win last month?"
+- "What is our close rate by lead source this year?"
+- "Export this week's jobs to a spreadsheet."
+- "Help me write a reply to this customer." (paste the message)
+- "Remember that I work Tuesday to Saturday."
+
+## Good to know
+
+- **It remembers.** Tell it something once and it writes it down.
+- **It asks before it sends.** {name} will check with you before sending a message,
+  deleting anything, or changing a company system.
+- **Colors mean topics.** Orange is Arizona Roofers, green is personal. The shape on
+  a chat's title in the sidebar matches.
+- **Your phone works too.** Open the Claude app on your phone to pick up any chat.
+- **Stuck?** Type "I'm stuck" and say what you were trying to do, or send Travis a screenshot.
 """
 
 
@@ -315,6 +375,9 @@ def configure(a):
     (workspace / ".gitignore").exists() or shutil.copy2(TEMPLATE / ".gitignore", workspace / ".gitignore")
     (workspace / ".assistant-name").write_text(name + "\n", encoding="utf-8")
     (workspace / ".marvin-source").write_text(str(TEMPLATE) + "\n", encoding="utf-8")
+
+    if not (workspace / "START-HERE.md").exists():
+        (workspace / "START-HERE.md").write_text(start_here(name), encoding="utf-8")
 
     if existed:
         log.append(f"{workspace} already had a CLAUDE.md, so your notes and profile were kept as they are.")

@@ -4,7 +4,7 @@ Rolling log of decisions made during MARVIN sessions. Referenced by `/start` for
 
 ---
 
-<!-- Entries are added automatically by /end and /update -->
+<!-- Entries are added automatically by /save and /update -->
 <!-- Format:
 ## YYYY-MM-DD
 

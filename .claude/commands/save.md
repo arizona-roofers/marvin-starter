@@ -1,12 +1,12 @@
 ---
-description: End MARVIN session - save context, update logs and state
+description: Save the session - summary, logs and state, so the next chat picks up where this one stopped
 ---
 
-# /end - End MARVIN Session
+# /save - Save the Session
 
 Wrap up the current session and save all context for continuity.
 
-**The goal:** A fresh session tomorrow should read ONLY `state/current.md` and know exactly where things stand. Every `/end` must leave that file accurate and complete.
+**The goal:** A fresh session tomorrow should read ONLY `state/current.md` and know exactly where things stand. Every `/save` must leave that file accurate and complete.
 
 ## Instructions
 

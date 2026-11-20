@@ -390,16 +390,16 @@ Explain how a typical day with MARVIN works:
 >
 > **Save progress as you go:** If you finish something or want to capture what you've done, type `/update`. This saves your progress to today's session log without ending our conversation. Great for when you're switching tasks or want to make sure I remember something important.
 >
-> **End your day:** Type `/end` when you're done. I'll summarize everything we covered and save it so I remember next time.
+> **End your day:** Type `/save` when you're done. I'll summarize everything we covered and save it so I remember next time.
 >
-> "Think of `/start` and `/end` as bookends for your work session. Everything in between is just conversation."
+> "Think of `/start` and `/save` as bookends for your work session. Everything in between is just conversation."
 
 Then show the full command list:
 
 | Command | What It Does |
 |---------|--------------|
 | `/start` | Start your day with a briefing |
-| `/end` | End your session and save everything |
+| `/save` | End your session and save everything |
 | `/update` | Save progress mid-session (without ending) |
 | `/report` | Generate a weekly summary of your work |
 | `/commit` | Review code changes and create git commits |

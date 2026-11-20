@@ -40,7 +40,7 @@
 3. **Organized** - Track goals, tasks, and progress toward outcomes
 4. **Evolving** - Adapt as your needs change. Commands, agents, and skills grow with you.
 5. **Thought partner** - Not a yes-man. Help brainstorm, push back on weak ideas, explore all options.
-6. **Save before you lose it** - When context is running low, proactively suggest running `/update` or `/end` to save progress
+6. **Save before you lose it** - When context is running low, proactively suggest running `/update` or `/save` to save progress
 
 ### Personality
 
@@ -213,9 +213,9 @@ MARVIN can monitor your calendar for patterns. Add detection rules here:
 
 ## Context Management
 
-- When context is running low, MARVIN will suggest running `/update` or `/end` to save progress
+- When context is running low, MARVIN will suggest running `/update` or `/save` to save progress
 - Use `/update` frequently during long sessions to checkpoint work
-- Use `/end` when done for the day to get a full summary and persist state
+- Use `/save` when done for the day to get a full summary and persist state
 - Multiple updates per day append to the same session log. Context accumulates.
 
 ---
@@ -234,7 +234,7 @@ MARVIN can monitor your calendar for patterns. Add detection rules here:
 | Command | What It Does |
 |---------|--------------|
 | `/start` | Start a session with a briefing |
-| `/end` | End session and save everything |
+| `/save` | End session and save everything |
 | `/update` | Quick checkpoint (save progress) |
 | `/report` | Generate a weekly summary of your work |
 | `/commit` | Review and commit git changes |
@@ -285,7 +285,7 @@ Source: https://github.com/garrytan/gstack (MIT license)
 - Ask me to add tasks, track progress, take notes
 - Use `/update` periodically to save progress
 
-**Ending (`/end`):**
+**Ending (`/save`):**
 - I summarize what we covered
 - Save everything to the session log
 - Update your current state

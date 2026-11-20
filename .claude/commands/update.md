@@ -50,7 +50,7 @@ Read `state/current.md` and scan for items related to the current work:
 
 ### 5. Staleness Check
 Check the "Last updated" date in `state/current.md`:
-- If **3+ days old**: flag it and ask: "State is {N} days stale. Want me to do a full refresh now or at /end?"
+- If **3+ days old**: flag it and ask: "State is {N} days stale. Want me to do a full refresh now or at /save?"
 - If recent: proceed without comment
 
 ### 6. Confirm (minimal)

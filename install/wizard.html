@@ -54,6 +54,11 @@
   ol.next { padding-left: 22px; margin: 0; }
   ol.next li { margin-bottom: 8px; }
   a { color: var(--accent); }
+  table.cmds { border-collapse: collapse; width: 100%; }
+  table.cmds td { padding: 7px 0; vertical-align: top; border-top: 1px solid var(--line); }
+  table.cmds tr:first-child td { border-top: 0; }
+  table.cmds td:first-child { white-space: nowrap; padding-right: 16px; }
+  code { font-family: ui-monospace, Consolas, monospace; font-weight: 700; color: var(--accent); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -125,6 +130,17 @@
         <li>Click the <b>Code</b> tab, then choose this folder:<br><span class="path" id="done-folder"></span></li>
         <li>Type <b>/start</b> and press Enter.</li>
       </ol>
+    </section>
+    <section>
+      <h2>The commands you will use</h2>
+      <table class="cmds">
+        <tr><td><code>/start</code></td><td>First thing in a new chat. It reads its notes and tells you where things stand.</td></tr>
+        <tr><td><code>/update</code></td><td>A quick checkpoint in the middle of work.</td></tr>
+        <tr><td><code>/save</code></td><td>When you are done. It saves a summary so tomorrow picks up from here.</td></tr>
+        <tr><td><code>/help</code></td><td>Lists every command.</td></tr>
+        <tr><td><code>/tint</code></td><td>Changes this chat's color.</td></tr>
+      </table>
+      <p class="hint">Everything else is plain English. The full list is in <b>START-HERE.md</b> in your folder.</p>
     </section>
     <section>
       <h2>Three more things, when you have a minute</h2>

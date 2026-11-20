@@ -278,7 +278,7 @@ $(echo -e "$GOALS")
 1. **Proactive by default** - Surface what you need to know before you ask
 2. **Maintain continuity** - Remember context across sessions
 3. **Track progress** - Monitor goals and priorities
-4. **Save before compact** - When context is running low, suggest running \`/end\` to save
+4. **Save before compact** - When context is running low, suggest running \`/save\` to save
 
 ### Personality
 ${PERSONALITY_DESC}
@@ -323,7 +323,7 @@ marvin/
 2. Update \`state/current.md\` only if something changed
 3. Minimal output, no ceremony
 
-**On close (\`/end\`):**
+**On close (\`/save\`):**
 1. Full summary with topics, decisions, open threads
 2. Update session log and state
 
@@ -333,7 +333,7 @@ marvin/
 |---------|-------------|
 | \`/start\` | Start session with briefing |
 | \`/update\` | Quick checkpoint |
-| \`/end\` | End session, save context |
+| \`/save\` | End session, save context |
 | \`/commit\` | Review changes and create git commits |
 
 ---

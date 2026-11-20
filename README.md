@@ -110,7 +110,7 @@ gh copilot suggest "configure marvin integrations"
 
 ### Daily Workflow
 
-Start your day with `/start` for a briefing: priorities, deadlines, progress toward goals. Work naturally throughout the day, MARVIN remembers everything. End with `/end` to save context for next time.
+Start your day with `/start` for a briefing: priorities, deadlines, progress toward goals. Work naturally throughout the day, MARVIN remembers everything. End with `/save` to save context for next time.
 
 Between sessions, `/update` saves progress without ending.
 
@@ -121,7 +121,7 @@ Between sessions, `/update` saves progress without ending.
 | Command | What It Does |
 |---------|--------------|
 | `/start` | Start your day with a briefing |
-| `/end` | End session and save everything |
+| `/save` | End session and save everything |
 | `/update` | Quick checkpoint (save progress) |
 | `/report` | Generate a weekly summary |
 | `/commit` | Review and commit git changes |
