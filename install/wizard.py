@@ -78,7 +78,7 @@ KITS = {
         "try": [
             "Should I book this? Tile roof, about 12 years old, leak over the garage, in Mesa.",
             "A homeowner wants to cancel tomorrow's appointment. What do I say?",
-            "Tidy up these call notes for the job card. (paste your notes)",
+            "When did this number last call, and what did they want? (give the number)",
             "How many jobs came in this week, by lead source?",
         ],
     },
@@ -247,6 +247,14 @@ def company_section(a, workspace):
             "Use the `roofr-changes` skill. Changes are made in the person's own Chrome, signed",
             "in as them, so Roofr's own permissions decide what is allowed. Say what you are",
             "about to change and wait for a yes, every time. The data API above is read-only.",
+            "",
+        ]
+    if (workspace / ".claude" / "skills" / "call-lookup" / "SKILL.md").exists():
+        lines += [
+            "### Phone calls",
+            "",
+            "Use the `call-lookup` skill for who called, when, who took it, and what was said.",
+            "It is read-only and uses the same token as the Roofr data.",
             "",
         ]
     if (pack / "travis.md").exists():
