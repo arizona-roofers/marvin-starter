@@ -431,7 +431,7 @@ function showApp(status) {
   if (status.state === 'installed') {
     open.disabled = false
     open.textContent = 'Open Claude'
-    if (!$('open-note').dataset.opened) $('open-note').textContent = 'Then follow the three steps below.'
+    if (!$('open-note').dataset.opened) $('open-note').textContent = '✓ The Claude app is on this computer. Open it, then follow the three steps below.'
   } else if (status.state === 'installing') {
     open.disabled = true
     open.textContent = 'Getting the Claude app…'

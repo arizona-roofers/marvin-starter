@@ -691,17 +691,14 @@ def configure(a):
 
 def missing_apps():
     """Apps the install step could not put on this machine, with where to get them."""
-    local = Path(os.environ.get("LOCALAPPDATA", ""))
     if IS_WINDOWS:
-        has_claude = (local / "AnthropicClaude" / "claude.exe").exists() or bool(list(
-            (local / "Microsoft" / "WindowsApps").glob("Claude*")))
         has_chrome = any((Path(os.environ.get(v, "")) / "Google" / "Chrome" / "Application" / "chrome.exe").exists()
                          for v in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"))
     elif IS_MAC:
-        has_claude = any((base / "Claude.app").exists() for base in (Path("/Applications"), Path.home() / "Applications"))
         has_chrome = Path("/Applications/Google Chrome.app").exists()
     else:
         return []
+    has_claude = claude_app_installed()
     missing = []
     if not has_claude:
         missing.append("the Claude app (claude.ai/download)")
@@ -911,7 +908,8 @@ def open_claude():
                 check=False)
             return done.returncode == 0
         if IS_MAC:
-            return subprocess.run(["open", "-a", "Claude"], check=False).returncode == 0
+            where = claude_app_path()
+            return subprocess.run(["open", where] if where else ["open", "-a", "Claude"], check=False).returncode == 0
     except OSError:
         pass
     return False
@@ -928,14 +926,45 @@ CLAUDE_APP_URL = {
 CLAUDE_APP = {"state": "unknown", "error": ""}
 
 
-def claude_app_installed():
+def claude_app_path():
+    """Where the Claude desktop app is on this computer, wherever it was put. None if absent."""
     if IS_MAC:
-        return any((base / "Claude.app").exists() for base in (Path("/Applications"), Path.home() / "Applications"))
+        for base in (Path("/Applications"), Path.home() / "Applications"):
+            if (base / "Claude.app").exists():
+                return str(base / "Claude.app")
+        try:  # Spotlight finds it in Downloads, on the Desktop, or anywhere else
+            found = subprocess.run(
+                ["mdfind", "kMDItemCFBundleIdentifier == 'com.anthropic.claudefordesktop' || "
+                           "(kMDItemContentType == 'com.apple.application-bundle' && kMDItemFSName == 'Claude.app')"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15)
+            for line in found.stdout.splitlines():
+                if line.endswith(".app") and "/Volumes/" not in line and Path(line).exists():
+                    return line
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        return None
     if IS_WINDOWS:
         local = Path(os.environ.get("LOCALAPPDATA", ""))
-        return (local / "AnthropicClaude" / "claude.exe").exists() or bool(list(
-            (local / "Microsoft" / "WindowsApps").glob("Claude*")))
-    return False
+        exe = local / "AnthropicClaude" / "claude.exe"
+        if exe.exists():
+            return str(exe)
+        store = list((local / "Microsoft" / "WindowsApps").glob("Claude*"))
+        if store:
+            return str(store[0])
+        try:  # anything the Start menu knows as "Claude"
+            found = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "(Get-StartApps | Where-Object { $_.Name -eq 'Claude' } | Select-Object -First 1).AppID"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20)
+            if found.stdout.strip():
+                return "shell:AppsFolder\\" + found.stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return None
+
+
+def claude_app_installed():
+    return claude_app_path() is not None
 
 
 BROWSER_AGENT = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
