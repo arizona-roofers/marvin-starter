@@ -23,6 +23,7 @@ jobs:
     env:
       ROOFR_EXTERNAL_TOKEN: test_token_not_real_0000000000
       ASSISTANT_ANSWERS_FILE: ${{ github.workspace }}/install/test-answers.json
+      ASSISTANT_PACK_DIR: ${{ github.workspace }}/install/test-pack
     steps:
       - uses: actions/checkout@v4
 

@@ -11,7 +11,9 @@ Standard library only, and it runs on the Python 3.9 that ships with macOS.
     python wizard.py --answers a.json   no page: apply a saved set of answers
 """
 import argparse
+import base64
 import datetime
+import io
 import json
 import os
 import re
@@ -20,6 +22,7 @@ import subprocess
 import sys
 import threading
 import webbrowser
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -63,6 +66,108 @@ MODES = {
     "bypassPermissions": "Bypass all permissions (never stops to ask)",
     "acceptEdits": "Accept edits (asks before running commands)",
     "default": "Ask every time",
+}
+
+# What each role gets: what the assistant focuses on, which SOPs it reads first,
+# the example prompts in START-HERE.md, and the model Claude starts on.
+KITS = {
+    "Customer Service Rep": {
+        "focus": "Answering and booking calls. Speed to lead comes first: answer fast, book the appointment.",
+        "sops": ["booking", "intake-calls", "cancellations", "escalations"],
+        "model": "sonnet",
+        "try": [
+            "Should I book this? Tile roof, about 12 years old, leak over the garage, in Mesa.",
+            "A homeowner wants to cancel tomorrow's appointment. What do I say?",
+            "Tidy up these call notes for the job card. (paste your notes)",
+            "How many jobs came in this week, by lead source?",
+        ],
+    },
+    "Sales Rep": {
+        "focus": "Running appointments and closing jobs, and keeping their own pipeline moving.",
+        "sops": ["booking", "insurance-pipeline"],
+        "model": "sonnet",
+        "try": [
+            "Show me my open jobs and what stage each one is in.",
+            "Which of my jobs have sat in the same stage the longest?",
+            "What is my close rate this month compared to last month?",
+            "Draft a follow-up text for a homeowner who said they want to think about it.",
+        ],
+    },
+    "Insurance / Claims": {
+        "focus": "Moving insurance jobs from signed contract to close-out without anything stalling.",
+        "sops": ["insurance-pipeline", "escalations"],
+        "model": "sonnet",
+        "try": [
+            "Which insurance jobs have gone longest without a stage change?",
+            "What is the next step once the adjuster has approved a claim?",
+            "Draft an update for a homeowner on where their claim stands. (paste the details)",
+            "How many insurance jobs did we win this quarter?",
+        ],
+    },
+    "Production / Operations": {
+        "focus": "Getting sold jobs built: scheduling, routing and keeping jobs from sitting.",
+        "sops": ["scheduler", "insurance-pipeline"],
+        "model": "sonnet",
+        "try": [
+            "How many jobs are in progress right now, by workflow?",
+            "Which in-progress jobs have gone longest without a stage change?",
+            "How does the scheduler decide which rep gets an appointment?",
+            "Summarize this week's won jobs.",
+        ],
+    },
+    "Office / Admin": {
+        "focus": "Keeping the office running: customers, paperwork and follow-ups.",
+        "sops": ["escalations", "cancellations"],
+        "model": "sonnet",
+        "try": [
+            "An existing customer is upset about a delay. How should I handle the call?",
+            "Help me write a reply to this customer. (paste the message)",
+            "Export this month's won jobs to a spreadsheet.",
+            "Remind me what each tool is for.",
+        ],
+    },
+    "Manager": {
+        "focus": "Running a team by the numbers: what is working, what is stuck, who needs help.",
+        "sops": ["booking", "escalations", "insurance-pipeline", "scheduler"],
+        "model": "sonnet",
+        "try": [
+            "Close rate by lead source this quarter.",
+            "Compare this month to last month: jobs won, total value and close rate.",
+            "Which owner has the most jobs in progress, and which are oldest?",
+            "What does the Booking SOP say about one-leggers?",
+        ],
+    },
+    "Developer": {
+        "focus": "Building and maintaining the company's tools.",
+        "sops": ["scheduler"],
+        "model": "opus",
+        "try": [
+            "Walk me through the Roofr External API schema.",
+            "Pull last week's jobs as CSV and check the columns.",
+            "/new-project to scaffold a tool.",
+            "How does the scheduler decide which rep gets an appointment?",
+        ],
+    },
+}
+DEFAULT_KIT = {
+    "focus": "Helping with day-to-day work at Arizona Roofers.",
+    "sops": ["booking", "escalations"],
+    "model": "sonnet",
+    "try": [
+        "How many jobs did we win last month?",
+        "What is our close rate by lead source this year?",
+        "Help me write a reply to this customer. (paste the message)",
+        "Remind me what each tool is for.",
+    ],
+}
+
+SOP_TITLES = {
+    "booking": "who to book and when to dispatch",
+    "intake-calls": "the CSR call script",
+    "cancellations": "when a homeowner calls to cancel",
+    "escalations": "an existing customer with a problem",
+    "insurance-pipeline": "insurance jobs, signed contract to close-out",
+    "scheduler": "how appointments get assigned and routed",
 }
 
 # Arizona Roofers topics every install gets. The assistant's own topic and the
@@ -117,10 +222,43 @@ def topics_for(name, color):
     ]
 
 
+def company_section(a, workspace):
+    """The part of CLAUDE.md that points at the knowledge pack, if setup brought one."""
+    pack = workspace / "company"
+    if not (pack / "README.md").exists():
+        return ""
+    kit = KITS.get(a["role"], DEFAULT_KIT)
+    first = [f"- `company/sops/{sop}.md`: {SOP_TITLES[sop]}" for sop in kit["sops"]
+             if (pack / "sops" / f"{sop}.md").exists()]
+    lines = [
+        "## Arizona Roofers Knowledge",
+        "",
+        "The `company/` folder holds the company facts and the SOPs. **Read",
+        "`company/README.md` before answering any question about how Arizona Roofers",
+        "works**, and follow its rules: quote the SOP, never invent a price or a policy.",
+        "",
+    ]
+    if first:
+        lines += [f"For a {a['role']}, these come up most:", ""] + first + [""]
+    if (pack / "travis.md").exists():
+        # The opening paragraph of the bio goes here, so it is in mind in every chat.
+        bio = (pack / "travis.md").read_text(encoding="utf-8")
+        opening = next((part.strip() for part in bio.split("\n\n")
+                        if part.strip() and not part.lstrip().startswith("#")), "")
+        lines += ["### Who set this up", "", opening, "",
+                  "Send people to him when the assistant is broken or confusing, when an SOP looks",
+                  "out of date, or when they need access to something. More in `company/travis.md`.", ""]
+    return "\n".join(lines) + "\n---\n\n"
+
+
 def claude_md(a, workspace):
     name = a["assistant"]
     upper = name.upper()
     today = datetime.date.today().isoformat()
+    kit = KITS.get(a["role"], DEFAULT_KIT)
+    roofr = (f"\n**Name in Roofr:** {a['roofr']}. Jobs owned by this name are \"my jobs\": use it as\n"
+             f"the `owner` filter when {a['user']} asks about their own jobs, pipeline or numbers.\n"
+             if a.get("roofr") else "")
     return f"""# {upper} - AI Chief of Staff
 
 This document is the primary context for Claude operating as {upper}.
@@ -134,9 +272,11 @@ and still say MARVIN. Those instructions are addressed to you: read MARVIN as {n
 
 **Name:** {a["user"]}
 **Role:** {a["role"]} at Arizona Roofers
-
+**Their work:** {kit["focus"]}
+{roofr}
 ---
 
+{company_section(a, workspace)}
 ## Part 2: How {name} Behaves
 
 ### Core Principles
@@ -224,7 +364,8 @@ edit `.mods/session-tint/hooks/topics.js`.
 """
 
 
-def start_here(name):
+def start_here(name, role=""):
+    examples = "\n".join(f'- "{line}"' for line in KITS.get(role, DEFAULT_KIT)["try"])
     return f"""# Start here
 
 {name} is your AI assistant. You talk to it in plain English. The commands below
@@ -252,10 +393,7 @@ Think of `/start` and `/save` as bookends. Everything in between is just convers
 
 ## Things to try
 
-- "How many jobs did we win last month?"
-- "What is our close rate by lead source this year?"
-- "Export this week's jobs to a spreadsheet."
-- "Help me write a reply to this customer." (paste the message)
+{examples}
 - "Remember that I work Tuesday to Saturday."
 
 ## Good to know
@@ -268,6 +406,54 @@ Think of `/start` and `/save` as bookends. Everything in between is just convers
 - **Your phone works too.** Open the Claude app on your phone to pick up any chat.
 - **Stuck?** Type "I'm stuck" and say what you were trying to do, or send Travis a screenshot.
 """
+
+
+def pack_bytes():
+    """The company knowledge pack as zip bytes, or None. It rides inside the install file."""
+    source = os.environ.get("ASSISTANT_INSTALL_FILE", "")
+    if not source or not Path(source).is_file():
+        return None
+    chunks = []
+    try:
+        with open(source, encoding="utf-8", errors="ignore") as handle:
+            for line in handle:
+                match = re.match(r"^(?:::|#)PACK:([A-Za-z0-9+/=]+)\s*$", line)
+                if match:
+                    chunks.append(match.group(1))
+        return base64.b64decode("".join(chunks)) if chunks else None
+    except (OSError, ValueError):
+        return None
+
+
+def load_pack(workspace, log):
+    """Put the company knowledge pack in <workspace>/company, replacing the last copy."""
+    target = workspace / "company"
+    folder = os.environ.get("ASSISTANT_PACK_DIR", "")
+    files = {}
+    if folder and Path(folder).is_dir():
+        for item in Path(folder).rglob("*.md"):
+            files[item.relative_to(folder).as_posix()] = item.read_bytes()
+    else:
+        data = pack_bytes()
+        if data is None:
+            return
+        try:
+            with zipfile.ZipFile(io.BytesIO(data)) as pack:
+                for info in pack.infolist():
+                    files[info.filename] = pack.read(info)
+        except (zipfile.BadZipFile, OSError):
+            log.append("The company knowledge pack in the install file could not be read, so it was skipped.")
+            return
+    written = 0
+    for name, content in files.items():
+        # Only plain notes, only inside the company folder.
+        if not re.fullmatch(r"(?:[A-Za-z0-9_-]+/)?[A-Za-z0-9_-]+\.md", name):
+            continue
+        (target / name).parent.mkdir(parents=True, exist_ok=True)
+        (target / name).write_bytes(content)
+        written += 1
+    if written:
+        log.append(f"Company knowledge added: {written} files of facts and SOPs.")
 
 
 def merge_env(path, values):
@@ -327,6 +513,7 @@ def write_settings(a, mod_dir, log):
         settings.setdefault("agentPushNotifEnabled", True)  # phone alert when a task finishes
     settings.setdefault("cleanupPeriodDays", 3650)  # keep old chats; the default deletes them after 30 days
     settings.setdefault("voiceEnabled", True)
+    settings.setdefault("model", KITS.get(a.get("role"), DEFAULT_KIT)["model"])
 
     env = settings.setdefault("env", {})
     if a.get("colors", True):
@@ -385,6 +572,7 @@ def configure(a):
     a["assistant"] = name
     a["user"] = re.sub(r"[\r\n`<>]", "", str(a.get("user") or "")).strip()[:40] or "the owner of this computer"
     a["role"] = a.get("role") if a.get("role") in ROLES else "Team member"
+    a["roofr"] = re.sub(r"[^A-Za-z0-9 .'-]", "", str(a.get("roofr") or "")).strip()[:60]
     a["style"] = a.get("style") if a.get("style") in STYLES else "Professional"
     if a.get("mode") not in MODES:
         a["mode"] = "bypassPermissions"
@@ -403,7 +591,8 @@ def configure(a):
     workspace.mkdir(parents=True, exist_ok=True)
 
     # The swarm layer stays out of employee installs: it needs other paid accounts.
-    copy_missing(TEMPLATE / ".claude", workspace / ".claude", skip=("the-boys.md",))
+    skip = () if a["role"] == "Developer" else ("the-boys.md",)
+    copy_missing(TEMPLATE / ".claude", workspace / ".claude", skip=skip)
     copy_missing(TEMPLATE / "state", workspace / "state")
     for folder in ("sessions", "reports", "content"):
         (workspace / folder).mkdir(exist_ok=True)
@@ -413,11 +602,17 @@ def configure(a):
     (workspace / ".assistant-name").write_text(name + "\n", encoding="utf-8")
     (workspace / ".marvin-source").write_text(str(TEMPLATE) + "\n", encoding="utf-8")
 
+    load_pack(workspace, log)
+
     if not (workspace / "START-HERE.md").exists():
-        (workspace / "START-HERE.md").write_text(start_here(name), encoding="utf-8")
+        (workspace / "START-HERE.md").write_text(start_here(name, a["role"]), encoding="utf-8")
 
     if existed:
         log.append(f"{workspace} already had a CLAUDE.md, so your notes and profile were kept as they are.")
+        section = company_section(a, workspace)
+        current = (workspace / "CLAUDE.md").read_text(encoding="utf-8")
+        if section and "company/README.md" not in current:  # add the pointer, change nothing else
+            (workspace / "CLAUDE.md").write_text(current.rstrip("\n") + "\n\n---\n\n" + section, encoding="utf-8")
     else:
         (workspace / "CLAUDE.md").write_text(claude_md(a, workspace), encoding="utf-8")
         today = datetime.date.today().isoformat()

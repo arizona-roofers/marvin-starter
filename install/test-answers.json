@@ -6,5 +6,6 @@
   "color": "Teal",
   "mode": "bypassPermissions",
   "remote": true,
-  "colors": true
+  "colors": true,
+  "roofr": "Pat Example"
 }

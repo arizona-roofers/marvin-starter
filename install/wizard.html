@@ -74,7 +74,7 @@
 <main>
   <div id="form">
     <h1>Meet <span id="title-name">Jarvis</span>, your AI assistant</h1>
-    <p class="lede">Six choices and you are done. Everything can be changed later.</p>
+    <p class="lede">A minute of choices and you are done. Everything can be changed later.</p>
 
     <section>
       <h2>Your assistant</h2>
@@ -102,6 +102,9 @@
           <select id="role"></select>
         </div>
       </div>
+      <label for="roofr">Your name as it appears in Roofr <span class="hint" style="display:inline">(optional)</span></label>
+      <input type="text" id="roofr" maxlength="60" placeholder="First and last name">
+      <p class="hint">With this, "show me my jobs" works from day one.</p>
     </section>
 
     <section>
@@ -238,7 +241,7 @@ $('go').onclick = async () => {
     const response = await fetch('/apply', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        assistant: chosenName(), color, style: $('style').value, user: $('user').value, role: $('role').value,
+        assistant: chosenName(), color, style: $('style').value, user: $('user').value, role: $('role').value, roofr: $('roofr').value,
         mode: $('mode').value, remote: $('remote').checked, colors: $('tint').checked, token: $('token').value,
       }),
     })

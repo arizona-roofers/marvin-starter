@@ -47,6 +47,14 @@ check("Roofr token in .env", "ROOFR_EXTERNAL_TOKEN=test_token_not_real_000000000
 check("token not in CLAUDE.md or START-HERE.md",
       "test_token" not in read(work / "CLAUDE.md") + read(work / "START-HERE.md"))
 
+print("Role kit and company knowledge")
+claude_md = read(work / "CLAUDE.md")
+check("role focus in CLAUDE.md", "Running appointments and closing jobs" in claude_md)
+check("Roofr name in CLAUDE.md", "Pat Example" in claude_md)
+check("role examples in START-HERE.md", "Show me my open jobs" in read(work / "START-HERE.md"))
+check("knowledge pack unpacked", (work / "company" / "README.md").exists() and (work / "company" / "sops" / "booking.md").exists())
+check("CLAUDE.md points at the pack", "company/README.md" in claude_md and "company/sops/booking.md" in claude_md)
+
 print("Color modes")
 topics = read(work / ".mods" / "session-tint" / "hooks" / "topics.js")
 check("mod copied into the workspace", (work / ".mods" / "session-tint" / "hooks" / "register.ts").exists())
@@ -60,6 +68,7 @@ except ValueError:
     settings = {}
 check("bypass permissions on", settings.get("permissions", {}).get("defaultMode") == "bypassPermissions")
 check("remote control on", settings.get("remoteControlAtStartup") is True)
+check("starting model set for the role", settings.get("model") == "sonnet")
 check("chat history kept", settings.get("cleanupPeriodDays") == 3650)
 check("mod folder registered", "session-tint" in settings.get("env", {}).get("CLAUDE_CODE_PLUGIN_DIRS", ""))
 

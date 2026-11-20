@@ -30,7 +30,7 @@ No install file? Paste one line instead, and the setup page will ask for the Roo
 python install/build-installer.py        # reads ROOFR_EXTERNAL_TOKEN from .env
 ```
 
-This writes `dist/Install Assistant.cmd` and `dist/Install Assistant (Mac).zip` with the Roofr token inside. `dist/` is never committed. Share the files from Google Drive limited to arizonaroofers.com. To change the token, rebuild and resend.
+Run it from the folder that holds your `.env` and `tools/starter-company-pack/`. It writes `dist/Install Assistant.cmd` and `dist/Install Assistant (Mac).zip` with the Roofr token and the company knowledge pack (facts, SOPs) inside. Neither is ever in this repository. `dist/` is never committed. Share the files from Google Drive limited to arizonaroofers.com. To change the token, rebuild and resend.
 
 ---
 
