@@ -411,6 +411,13 @@ Personal green, and {name}'s own color for work on the assistant itself.
 `/tint <topic>` changes it, `/tint off` clears it. To add or change topics,
 edit `.mods/session-tint/hooks/topics.js`.
 
+### Usage bar
+
+Above the message box, three meters show how full this chat is (Context) and
+how much of the Session and Week limits is used, with when each resets. They
+turn amber at 60% and red at 85%. When Context is high, `/compact` or `/save`
+and start a new chat.
+
 ---
 
 *Set up: {today}*
