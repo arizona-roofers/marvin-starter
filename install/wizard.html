@@ -53,6 +53,7 @@
   ul.done li::before { content: "\2713"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
   ol.next { padding-left: 22px; margin: 0; }
   ol.next li { margin-bottom: 8px; }
+  a { color: var(--accent); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -123,6 +124,14 @@
         <li>Open the <b>Claude</b> app and sign in with your work email.</li>
         <li>Click the <b>Code</b> tab, then choose this folder:<br><span class="path" id="done-folder"></span></li>
         <li>Type <b>/start</b> and press Enter.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>Three more things, when you have a minute</h2>
+      <ol class="next">
+        <li><b>Phone:</b> install the Claude app on your phone and sign in with the same work email. Your chats show up there.</li>
+        <li><b>Chrome:</b> sign in to Chrome with your work email. The Roofr Assist extension installs itself. Then add <a href="https://claude.ai/chrome" target="_blank" rel="noopener">Claude in Chrome</a> so your assistant can work in web pages.</li>
+        <li><b>Email and calendar:</b> in the Claude app, open Settings, then Connectors, and connect Gmail, Google Calendar and Google Drive.</li>
       </ol>
     </section>
     <button class="go" id="open">Open Claude and the folder</button>

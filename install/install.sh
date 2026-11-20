@@ -55,6 +55,16 @@ else
   open "https://claude.ai/download" || true
 fi
 
+step "Node.js and Google Chrome"
+if command -v node >/dev/null 2>&1; then ok "Node.js already installed"
+elif command -v brew >/dev/null 2>&1 && brew install node >/dev/null 2>&1; then ok "Node.js installed"
+else note "Node.js skipped. Only add-on skills need it; get it from https://nodejs.org if you ever do."
+fi
+if [ -d "/Applications/Google Chrome.app" ]; then ok "Chrome already installed"
+elif command -v brew >/dev/null 2>&1 && brew install --cask google-chrome >/dev/null 2>&1; then ok "Chrome installed"
+else note "Chrome is not installed. Get it from https://www.google.com/chrome/ for the Roofr tools."
+fi
+
 step "Downloading the starter"
 if [ -d "$STARTER/.git" ]; then
   git -C "$STARTER" pull --ff-only --quiet && ok "updated" || note "could not update; using the copy already here"

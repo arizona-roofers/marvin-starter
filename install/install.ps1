@@ -59,7 +59,11 @@ Update-PathFromRegistry
 
 Write-Step 'Git'
 if (Test-Tool 'git') { Write-Ok 'already installed' }
-else { [void](Install-WithWinget 'Git.Git' 'Git'); if (Test-Tool 'git') { Write-Ok 'installed' } else { Write-Note 'not installed; carrying on without it' } }
+else {
+  [void](Install-WithWinget 'Git.Git' 'Git')
+  if (Test-Tool 'git') { Write-Ok 'installed' }
+  else { Write-Note 'not installed. Claude needs Git to run commands on Windows: install it from https://git-scm.com/download/win after setup.' }
+}
 
 Write-Step 'Python'
 $python = Get-Python
@@ -74,6 +78,15 @@ else {
   if ($python) { Write-Ok 'installed' }
   else { throw 'Python could not be installed. Install it from https://www.python.org/downloads/ and run this again.' }
 }
+
+Write-Step 'Node.js'
+if (Test-Tool 'node') { Write-Ok 'already installed' }
+else { [void](Install-WithWinget 'OpenJS.NodeJS.LTS' 'Node.js'); if (Test-Tool 'node') { Write-Ok 'installed' } else { Write-Note 'not installed; only add-on skills need it, so carrying on' } }
+
+Write-Step 'Google Chrome'
+$hasChrome = (Test-Path "$env:ProgramFiles\Google\Chrome\Application\chrome.exe") -or (Test-Path "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe") -or (Test-Path "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe")
+if ($hasChrome) { Write-Ok 'already installed' }
+else { [void](Install-WithWinget 'Google.Chrome' 'Google Chrome'); Write-Ok 'done' }
 
 Write-Step 'Claude Code'
 if (Test-Tool 'claude') { Write-Ok 'already installed' }

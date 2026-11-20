@@ -250,6 +250,10 @@ def write_settings(a, mod_dir, log):
     if mode == "bypassPermissions":
         settings["skipDangerousModePermissionPrompt"] = True
     settings["remoteControlAtStartup"] = bool(a.get("remote", True))
+    if settings["remoteControlAtStartup"]:
+        settings.setdefault("agentPushNotifEnabled", True)  # phone alert when a task finishes
+    settings.setdefault("cleanupPeriodDays", 3650)  # keep old chats; the default deletes them after 30 days
+    settings.setdefault("voiceEnabled", True)
 
     env = settings.setdefault("env", {})
     if a.get("colors", True):
