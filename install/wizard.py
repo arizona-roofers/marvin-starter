@@ -1526,6 +1526,10 @@ for and how. The notes it points to (`state/`, `company/`) are yours to read and
 
 The files in `.claude/commands/` are plain instructions. When the person types `/start`
 or `/save`, read `.claude/commands/start.md` or `.claude/commands/save.md` and do what it says.
+
+The folders and files in `.claude/skills/` are how-to guides for particular jobs, such as
+looking up Roofr jobs and calls. Before a task one of them covers, read it (a folder's guide
+is its `SKILL.md`) and follow it. Access tokens they mention are in `.env` in this folder.
 """
 
 # "never" is the tool's own flag for running without stopping to ask. Antigravity has
@@ -1650,7 +1654,11 @@ def write_extras(a, workspace, name, extras, log):
         return
     never_asks = bool(a.get("extrasBypass", a.get("agyBypass", True)))
     for pointer in ["AGENTS.md"] + (["GEMINI.md"] if "agy" in extras else []):
-        if not (workspace / pointer).exists():
+        current = (workspace / pointer).read_text(encoding="utf-8", errors="ignore") if (workspace / pointer).exists() else ""
+        # Write it if it is missing, or if it is setup's own earlier one from before the skills paragraph.
+        ours_before = "Read `CLAUDE.md` in this folder first" in current and ".claude/skills/" not in current \
+            and len(current) < 700
+        if not current or ours_before:
             (workspace / pointer).write_text(POINTER.format(name=name), encoding="utf-8")
     for tool in extras:
         write_launcher(tool, workspace, never_asks)
