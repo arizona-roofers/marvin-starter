@@ -175,6 +175,28 @@
   .vs.head > span:first-child { color: var(--soft); }
   .vs.head > span:last-child { color: var(--accent); }
   @media (max-width: 520px) { .vs { grid-template-columns: 1fr; gap: 2px; } .vs.head > span:first-child { display: none; } }
+  .finale { position: relative; text-align: center; padding: 18px 0 6px; }
+  .finale h1 { margin-top: 18px; }
+  .orb.big { width: 108px; height: 108px; font-size: 52px; margin: 0 auto; animation: pop .7s cubic-bezier(.2, 1.5, .4, 1) both, breathe 6s ease-in-out .7s infinite alternate; }
+  @keyframes pop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .burst { position: absolute; left: 50%; top: 72px; width: 0; height: 0; }
+  .burst i { position: absolute; width: 10px; height: 10px; border-radius: 3px; opacity: 0; animation: fly 1.5s cubic-bezier(.1, .7, .3, 1) .25s both; }
+  .page:not([hidden]) .burst i { background: hsl(calc(var(--h) + var(--k) * 26) 85% 62%); }
+  @keyframes fly { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--x), var(--y)) rotate(320deg); opacity: 0; } }
+  ul.ready { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  ul.ready li { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: 1px solid var(--edge); border-radius: 12px;
+    background: color-mix(in srgb, var(--bg) 55%, transparent); }
+  ul.ready .mark { width: 24px; height: 24px; border-radius: 50%; flex: none; display: grid; place-items: center; font-size: 14px; font-weight: 800;
+    border: 2px solid var(--edge); color: var(--soft); }
+  ul.ready li.on .mark { background: var(--ok); border-color: var(--ok); color: #fff; }
+  ul.ready .what-it-is { flex: 1; }
+  ul.ready .what-it-is small { display: block; color: var(--soft); font-size: 14px; }
+  ul.ready button { flex: none; }
+  .tries { display: grid; gap: 8px; }
+  .try { text-align: left; padding: 13px 16px; font: inherit; cursor: pointer; color: var(--ink); border-radius: 14px;
+    background: color-mix(in srgb, var(--bg) 60%, transparent); border: 1px solid var(--edge); transition: transform .12s, border-color .2s; }
+  .try:hover { transform: translateY(-1px); border-color: var(--accent); }
+  .try small { display: block; color: var(--accent); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-top: 4px; }
   .progress { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -225,7 +247,7 @@
   @keyframes arrive { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
   h1:focus { outline: none; }
   @media (prefers-reduced-motion: reduce) {
-    .aurora i, .orb, .page:not([hidden]) { animation: none; }
+    .aurora i, .orb, .orb.big, .burst i, .page:not([hidden]) { animation: none; }
     * { transition: none !important; }
   }
   [hidden] { display: none !important; }
@@ -447,11 +469,27 @@
   </div>
 
   <div class="page" data-page="10" hidden>
-    <div class="hero">
-      <div class="orb" aria-hidden="true">\u2713</div>
-      <h1>You are all set</h1>
+    <div class="finale">
+      <div class="burst" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="orb big" aria-hidden="true">&#10003;</div>
+      <h1>You are all set<span id="final-user"></span></h1>
+      <p class="lede"><span class="the-name">Jarvis</span> is ready to work.</p>
     </div>
-    <p class="lede"><span class="the-name">Jarvis</span> is ready. Open Claude, pick your folder, and type <code>/start</code>.</p>
+
+    <section>
+      <h2>What is ready</h2>
+      <ul class="ready" id="ready"></ul>
+    </section>
+
+    <section>
+      <h2>Try one of these first</h2>
+      <p class="hint" style="margin:0 0 12px">Click one to copy it, then paste it into Claude after <code>/start</code>.</p>
+      <div class="tries" id="tries"></div>
+    </section>
+
+    <button class="go" id="final-open">Open Claude</button>
+    <p class="hint" style="text-align:center;margin:12px 0 22px">Pick your folder in the <b>Code</b> tab and type <code>/start</code>.</p>
+
     <details class="what">
       <summary>Where to find things later</summary>
       <ul class="done" style="margin-top:12px">
@@ -460,7 +498,7 @@
         <li>Stuck? Type "I'm stuck" in a chat, or send Travis a screenshot.</li>
       </ul>
     </details>
-    <div class="nav"><button class="go quiet back" data-go="9">Back</button><button class="go" id="finish">I'm done</button></div>
+    <div class="nav"><button class="go quiet back" data-go="9">Back</button><button class="go quiet" id="finish">Close setup</button></div>
     <p class="hint" id="finish-note" style="text-align:center;margin-top:12px"></p>
   </div>
 </main>
@@ -476,8 +514,59 @@ const chosenName = () => ($('name').value === '__custom' ? $('custom').value.tri
 
 // One page at a time. Pages 1-3 are the choices, 4-7 come after setup has run.
 let page = 1
+// What each later step ended up as, for the last screen.
+const done = { chrome: 0, drill: false, connectors: 0, connectorsKnown: false, github: false }
+const doneState = done
+
+function showFinale() {
+  $('final-user').textContent = result && result.user ? `, ${result.user}` : ''
+  const rows = [
+    [true, `${result ? result.assistant : 'Your assistant'} is set up`, 'Its folder, notes, company knowledge and Roofr access.', 0],
+    [appState === 'installed', 'The Claude app', appState === 'installed' ? 'On this computer.' : 'Not installed yet.', 4],
+    [done.chrome >= 3, 'Chrome', done.chrome >= 3 ? 'Signed in, with Claude added.' : 'Not finished: this is what lets it work in Roofr for you.', 5],
+    [done.drill, 'The four commands', done.drill ? 'You typed all four.' : 'Not practised yet.', 7],
+    [done.connectors >= 3, 'Email, calendar and files',
+      done.connectors >= 3 ? 'Gmail, Calendar and Drive are connected.'
+        : done.connectorsKnown ? `${done.connectors} of 3 connected.` : 'Could not be checked from here.', 8],
+    [done.github, 'GitHub backup', done.github ? 'Connected.' : 'Not connected yet.', 9],
+  ]
+  $('ready').replaceChildren(...rows.map(([on, title, detail, go]) => {
+    const li = document.createElement('li')
+    if (on) li.className = 'on'
+    const mark = Object.assign(document.createElement('span'), { className: 'mark', textContent: on ? '\u2713' : '' })
+    const text = Object.assign(document.createElement('span'), { className: 'what-it-is' })
+    text.append(Object.assign(document.createElement('b'), { textContent: title }),
+      Object.assign(document.createElement('small'), { textContent: detail }))
+    li.append(mark, text)
+    if (!on && go) {
+      const fix = Object.assign(document.createElement('button'), { type: 'button', className: 'copy', textContent: 'Finish it' })
+      fix.onclick = () => show(go)
+      li.append(fix)
+    }
+    return li
+  }))
+  $('tries').replaceChildren(...((result && result.try) || []).map(line => {
+    const card = Object.assign(document.createElement('button'), { type: 'button', className: 'try', textContent: line })
+    const tag = Object.assign(document.createElement('small'), { textContent: 'Click to copy' })
+    card.append(tag)
+    card.onclick = async () => {
+      try { await navigator.clipboard.writeText(line); tag.textContent = 'Copied. Paste it into Claude.' } catch (error) { tag.textContent = 'Select the text and copy it' }
+    }
+    return card
+  }))
+  let k = 0
+  for (const dot of document.querySelectorAll('.burst i')) {
+    const angle = (k / 14) * Math.PI * 2, far = 110 + (k % 3) * 34
+    dot.style.setProperty('--x', `${Math.round(Math.cos(angle) * far)}px`)
+    dot.style.setProperty('--y', `${Math.round(Math.sin(angle) * far)}px`)
+    dot.style.setProperty('--k', String(k % 5 - 2))
+    k += 1
+  }
+}
+
 function show(n) {
   page = n
+  if (n === 10) showFinale()
   if (n === 7) setTimeout(() => $('drill').focus(), 60)
   if (n === 8) post('/connectors/status').then(showConnectors)
   if (n === 9) post('/github/status').then(showGithub)
@@ -676,6 +765,7 @@ function showGithub(s) {
     $('gh-code').hidden = true
     $('gh-backup').disabled = false
     $('gh-next').disabled = false
+    done.github = true
     $('gh-have').setAttribute('aria-pressed', 'true')
   } else if (s.state === 'waiting') {
     $('gh-code').hidden = !s.code
@@ -719,6 +809,7 @@ function askDrill() {
   $('drill-hint').textContent = done ? '' : 'Start with the slash.'
   $('drill-next').disabled = !done
   if (done) {
+    window.setTimeout(() => { doneState.drill = true }, 0)
     $('drill-ask').textContent = 'That is all four. You will use /start and /save every day.'
     return
   }
@@ -755,6 +846,8 @@ function showConnectors(c) {
     row.classList.toggle('on', yes)
     if (yes) on += 1
   }
+  done.connectors = on
+  done.connectorsKnown = c.state !== 'unknown'
   $('conn-note').textContent = c.state === 'unknown'
     ? 'Setup cannot see your connectors from here, so there are no ticks. If the page shows "Connected" for all three, you are done.'
     : on === 3 ? 'All three are connected.' : c.checking ? 'Checking…' : 'Each one gets a tick here once it is connected.'
@@ -790,6 +883,7 @@ for (const button of document.querySelectorAll('button.step[data-page]')) {
     await fetch('/chrome', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: button.dataset.page }),
     })
+    if (!button.classList.contains('done')) done.chrome += 1
     button.classList.add('done')
     button.textContent = '✓ ' + button.textContent.replace(/^✓ /, '')
   }
@@ -802,6 +896,11 @@ $('copy-folder').onclick = async () => {
   } catch (error) {
     $('copy-folder').textContent = 'Select it and copy'
   }
+}
+
+$('final-open').onclick = async () => {
+  const opened = await post('/open')
+  $('final-open').textContent = opened.claude ? 'Claude is opening…' : 'Open Claude from your Applications or Start menu'
 }
 
 $('finish').onclick = async () => {

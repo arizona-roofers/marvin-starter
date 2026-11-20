@@ -689,7 +689,9 @@ def configure(a):
     if shutil.which("git") and not (workspace / ".git").exists():
         subprocess.run(["git", "init", "-q"], cwd=str(workspace), check=False)
 
-    return {"ok": True, "log": log, "folder": str(workspace), "assistant": name}
+    return {"ok": True, "log": log, "folder": str(workspace), "assistant": name,
+            "user": a["user"] if a["user"] != "the owner of this computer" else "",
+            "try": KITS.get(a["role"], DEFAULT_KIT)["try"][:3]}
 
 
 def missing_apps():
