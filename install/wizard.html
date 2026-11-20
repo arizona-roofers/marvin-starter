@@ -198,31 +198,28 @@
     background: color-mix(in srgb, var(--bg) 60%, transparent); border: 1px solid var(--edge); transition: transform .12s, border-color .2s; }
   .try:hover { transform: translateY(-1px); border-color: var(--accent); }
   .try small { display: block; color: var(--accent); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-top: 4px; }
-  .intro { text-align: center; padding-top: 4vh; }
+  .intro { text-align: center; padding-top: 0; }
+  .intro .orb.big { width: 84px; height: 84px; font-size: 40px; }
+  .intro .kicker { margin-top: 14px; }
+  .intro .lede { margin-bottom: 0; }
   .intro .orb.big { animation: pop .7s cubic-bezier(.2, 1.5, .4, 1) both, breathe 6s ease-in-out .7s infinite alternate; }
   .kicker { margin: 22px 0 6px; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
-  .stage { position: relative; height: 210px; margin: 26px 0 6px; }
-  .slide { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .5s ease; }
-  .slide.on { opacity: 1; pointer-events: auto; }
+  .stage { display: grid; gap: 10px; margin: 22px 0 22px; text-align: left; }
+  .slide {
+    display: grid; grid-template-columns: 1fr; gap: 2px; padding: 12px 16px; border-radius: 14px;
+    background: var(--glass); border: 1px solid var(--edge); border-left: 3px solid var(--accent);
+    -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    opacity: 0; transform: translateY(10px);
+    animation: rise .4s cubic-bezier(.2, .7, .2, 1) forwards; animation-delay: calc(var(--i) * .55s + .35s);
+  }
+  @keyframes rise { to { opacity: 1; transform: none; } }
   .slide p { margin: 0; }
-  .slide .old { color: var(--soft); font-size: 17px; position: relative; display: inline-block; align-self: center; }
-  .slide .old::after { content: ""; position: absolute; left: 0; top: 55%; height: 2px; width: 0; background: var(--soft); }
-  .slide.on .old::after { width: 100%; transition: width .6s ease .9s; }
-  .slide .new { font-size: clamp(28px, 5.500vw, 40px); font-weight: 780; letter-spacing: -.025em; line-height: 1.1; margin-top: 14px;
-    background: linear-gradient(120deg, var(--ink), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent;
-    opacity: 0; transform: translateY(12px); }
-  .slide.on .new { opacity: 1; transform: none; transition: opacity .6s ease 1.3s, transform .6s cubic-bezier(.2, .7, .2, 1) 1.3s; }
-  .slide .sub { color: var(--ink); font-size: 17px; margin-top: 10px; opacity: 0; }
-  .slide.on .sub { opacity: .9; transition: opacity .6s ease 1.8s; }
-  .dots { display: flex; gap: 8px; justify-content: center; margin: 0 0 26px; }
-  .dots button { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: 0; cursor: pointer; background: var(--edge); transition: background .3s, transform .3s; }
-  .dots button[aria-selected=true] { background: var(--accent); transform: scale(1.35); }
+  .slide .old { color: var(--soft); font-size: 13.500px; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--soft) 70%, transparent); }
+  .slide .new { font-size: 21px; font-weight: 760; letter-spacing: -.015em; color: var(--accent); line-height: 1.2; }
+  .slide .sub { color: var(--ink); font-size: 15px; opacity: .88; }
+  .dots { display: none; }
   .intro .go { max-width: 320px; margin: 0 auto; display: block; }
-  .static .stage { height: auto; display: grid; gap: 18px; text-align: left; }
-  .static .slide { position: static; opacity: 1; }
-  .static .slide .new, .static .slide .sub { opacity: 1; transform: none; }
-  .static .slide .old::after { width: 100%; }
-  .static .dots { display: none; }
+  .static .slide { animation: none; opacity: 1; transform: none; }
   .progress { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -274,6 +271,7 @@
   h1:focus { outline: none; }
   @media (prefers-reduced-motion: reduce) {
     .aurora i, .orb, .orb.big, .burst i, .page:not([hidden]) { animation: none; }
+    .slide { animation: none; opacity: 1; transform: none; }
     * { transition: none !important; }
   }
   [hidden] { display: none !important; }
@@ -291,7 +289,7 @@
       <p class="kicker">Arizona Roofers</p>
       <h1>Your own AI assistant</h1>
       <p class="lede">It is Claude, set up for your job.</p>
-      <div class="stage" id="stage" aria-live="polite">
+      <div class="stage" id="stage">
         <div class="slide"><p class="old">Regular Claude starts every chat from zero.</p>
           <p class="new">Yours remembers.</p><p class="sub">It keeps notes on your work and picks up where you left off, even days later.</p></div>
         <div class="slide"><p class="old">Regular Claude knows nothing about our company.</p>
@@ -303,9 +301,8 @@
         <div class="slide"><p class="old">Regular Claude stays on the screen you opened it on.</p>
           <p class="new">Yours goes with you.</p><p class="sub">Start something at your desk and check on it from your phone.</p></div>
       </div>
-      <div class="dots" id="dots" role="tablist" aria-label="Differences"></div>
       <button class="go" id="begin" data-go="1" disabled>Get started</button>
-      <p class="hint" id="begin-note" style="text-align:center;margin-top:12px">Five things to know first.</p>
+      <p class="hint" id="begin-note" style="text-align:center;margin-top:12px">&nbsp;</p>
     </div>
   </div>
 
@@ -599,48 +596,20 @@ function showFinale() {
   }
 }
 
-// The intro: one difference at a time, turning by itself.
-let slideAt = 0, slideTimer
-const slidesSeen = new Set()
-function showSlide(i, restart = true) {
-  const slides = [...$('stage').children]
-  slideAt = (i + slides.length) % slides.length
-  // Get started unlocks once every difference has been on screen long enough to read.
-  const showing = slideAt
-  setTimeout(() => {
-    if (slideAt !== showing || page !== 0) return
-    slidesSeen.add(showing)
-    const left = slides.length - slidesSeen.size
-    $('begin').disabled = left > 0
-    $('begin-note').textContent = left > 0 ? `${left} more to go.` : 'About five minutes from here.'
-  }, 2600)
-  slides.forEach((el, k) => el.classList.toggle('on', k === slideAt))
-  ;[...$('dots').children].forEach((dot, k) => dot.setAttribute('aria-selected', String(k === slideAt)))
-  clearTimeout(slideTimer)
-  if (restart && page === 0) slideTimer = setTimeout(() => showSlide(slideAt + 1), 4600)
-}
+// The intro: the five differences arrive one after another and stay.
+let slideTimer
 function startIntro() {
-  const stage = $('stage')
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {  // no motion: show all five at once
-    stage.closest('.intro').classList.add('static')
-    $('begin').disabled = false
-    $('begin-note').textContent = 'About five minutes from here.'
-    return
-  }
-  $('dots').replaceChildren(...[...stage.children].map((_, k) => {
-    const dot = Object.assign(document.createElement('button'), { type: 'button' })
-    dot.setAttribute('role', 'tab')
-    dot.setAttribute('aria-label', `Difference ${k + 1} of ${stage.children.length}`)
-    dot.onclick = () => showSlide(k)
-    return dot
-  }))
-  showSlide(0)
+  const rows = [...$('stage').children]
+  rows.forEach((row, i) => row.style.setProperty('--i', String(i)))
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (still) $('stage').closest('.intro').classList.add('static')
+  const ready = () => { $('begin').disabled = false; $('begin-note').textContent = 'About five minutes from here.' }
+  if (still) ready()
+  else slideTimer = setTimeout(ready, rows.length * 550 + 700)
 }
 
 function show(n) {
   page = n
-  if (n !== 0) clearTimeout(slideTimer)
-  else if ($('dots').children.length) showSlide(slideAt)
   if (n === 10) showFinale()
   if (n === 7) setTimeout(() => $('drill').focus(), 60)
   if (n === 8) post('/connectors/status').then(showConnectors)
