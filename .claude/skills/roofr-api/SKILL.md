@@ -56,7 +56,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 PowerShell:
 
 ```powershell
-$token = ((Get-Content .env) -match '^ROOFR_EXTERNAL_TOKEN=') -replace '^ROOFR_EXTERNAL_TOKEN=', ''
+$token = (@(Get-Content .env) -match '^ROOFR_EXTERNAL_TOKEN=')[0] -replace '^ROOFR_EXTERNAL_TOKEN=', ''
 Invoke-RestMethod "https://roofr-search.vercel.app/api/external/summary?from=2026-01-01&to=2026-01-31" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
