@@ -437,7 +437,8 @@
           <span class="hint" id="gh-signup-note" hidden>GitHub's sign-up page opened in Chrome. Use your work email, pick any username, then come back here.</span></li>
         <li><button class="step" id="gh-connect">Connect my GitHub</button>
           <span id="gh-note">A GitHub page opens. Sign in, then type the code shown here.</span>
-          <div id="gh-code" hidden>Your code: <code id="gh-code-value" style="font-size:22px;letter-spacing:.08em"></code></div></li>
+          <div id="gh-code" hidden>Your code: <code id="gh-code-value" style="font-size:22px;letter-spacing:.08em"></code>
+            <button type="button" class="copy" id="gh-code-copy">Copy</button></div></li>
         <li><button class="step" id="gh-backup" disabled>Back up my assistant</button>
           <span id="gh-backup-note">Makes a private copy only you can see. Your Roofr token is never included.</span></li>
       </ol>
@@ -688,6 +689,15 @@ function showGithub(s) {
   }
 }
 $('gh-connect').onclick = async () => showGithub(await post('/github/connect'))
+$('gh-code-copy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($('gh-code-value').textContent)
+    $('gh-code-copy').textContent = 'Copied'
+    setTimeout(() => { $('gh-code-copy').textContent = 'Copy' }, 2500)
+  } catch (error) {
+    $('gh-code-copy').textContent = 'Select it and copy'
+  }
+}
 $('gh-have').onclick = () => { $('gh-have').setAttribute('aria-pressed', 'true'); $('gh-signup').setAttribute('aria-pressed', 'false') }
 $('gh-signup').onclick = () => {
   $('gh-signup').setAttribute('aria-pressed', 'true'); $('gh-have').setAttribute('aria-pressed', 'false')
