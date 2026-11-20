@@ -10,8 +10,8 @@ One file, about five minutes, Windows or Mac. You need a Claude seat on the comp
 
 1. Open the install file Travis sent you.
    - **Windows:** double-click `Install Assistant.cmd`. If Windows shows a blue "protected your PC" box, click **More info**, then **Run anyway**.
-   - **Mac:** unzip `Install Assistant (Mac).zip`, then **right-click** the file inside and choose **Open** (a plain double-click is blocked the first time).
-2. It installs Git, Python, Claude Code and the Claude app, then opens a setup page in your browser.
+   - **Mac:** unzip `Install Assistant (Mac).zip` and double-click the file inside. macOS will refuse it the first time: open **System Settings → Privacy & Security**, scroll to "Install Assistant.command was blocked", and click **Open Anyway**.
+2. A setup page opens in your browser within a few seconds. It installs Claude Code, the Claude app, Chrome and the rest while you go through it, and shows each one's progress.
 3. On the setup page, pick your assistant's name (Jarvis, HAL, WALL-E, or your own), its color, and how it should talk. Click **Set up**.
 4. Open the Claude app, sign in with your work email, click the **Code** tab, choose the folder the page shows, and type `/start`.
 
