@@ -83,6 +83,10 @@ Write-Step 'Node.js'
 if (Test-Tool 'node') { Write-Ok 'already installed' }
 else { [void](Install-WithWinget 'OpenJS.NodeJS.LTS' 'Node.js'); if (Test-Tool 'node') { Write-Ok 'installed' } else { Write-Note 'not installed; only add-on skills need it, so carrying on' } }
 
+Write-Step 'GitHub tool'
+if (Test-Tool 'gh') { Write-Ok 'already installed' }
+else { [void](Install-WithWinget 'GitHub.cli' 'the GitHub tool'); if (Test-Tool 'gh') { Write-Ok 'installed' } else { Write-Note 'not installed; only the optional backup needs it' } }
+
 Write-Step 'Google Chrome'
 $hasChrome = (Test-Path "$env:ProgramFiles\Google\Chrome\Application\chrome.exe") -or (Test-Path "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe") -or (Test-Path "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe")
 if ($hasChrome) { Write-Ok 'already installed' }

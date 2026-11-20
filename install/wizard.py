@@ -501,6 +501,8 @@ CHROME_PAGES = {
     "google": "https://accounts.google.com/",
     "extension": "https://chromewebstore.google.com/detail/claude/" + CLAUDE_EXTENSION,
     "claude": "https://claude.ai/login",
+    "github-device": "https://github.com/login/device",
+    "github-signup": "https://github.com/signup",
 }
 
 
@@ -552,6 +554,119 @@ def open_in_chrome(page):
         pass
     webbrowser.open(url)
     return False
+
+
+# --- GitHub (optional): sign in and keep a private backup of the workspace ---------
+
+GITHUB = {"state": "none", "code": "", "user": "", "error": ""}
+
+
+def gh(*args, cwd=None, timeout=60):
+    """Run the GitHub tool. Returns (worked, output)."""
+    exe = shutil.which("gh")
+    if exe is None:
+        return False, "GitHub tool not installed"
+    try:
+        done = subprocess.run([exe, *args], cwd=cwd, capture_output=True, text=True, timeout=timeout,
+                              stdin=subprocess.DEVNULL)
+        return done.returncode == 0, (done.stdout + done.stderr).strip()
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return False, str(error)
+
+
+def github_user():
+    worked, out = gh("api", "user", "--jq", ".login + \" \" + (.id|tostring)")
+    return out.split() if worked and len(out.split()) == 2 else None
+
+
+def github_refresh():
+    """Notice a sign-in that has finished, and point git at it."""
+    if GITHUB["state"] == "connected":
+        return
+    found = github_user()
+    if found is None:
+        return
+    login, user_id = found
+    GITHUB.update(state="connected", user=login, code="", error="")
+    gh("auth", "setup-git")
+    git = shutil.which("git")
+    if git:
+        for key, value in (("user.name", login), ("user.email", f"{user_id}+{login}@users.noreply.github.com")):
+            has = subprocess.run([git, "config", "--global", key], capture_output=True, text=True)
+            if not has.stdout.strip():
+                subprocess.run([git, "config", "--global", key, value], check=False)
+
+
+def github_connect():
+    """Start GitHub's sign-in: it gives a short code to type on a GitHub page."""
+    github_refresh()
+    if GITHUB["state"] in ("connected", "waiting"):
+        return
+    exe = shutil.which("gh")
+    if exe is None:
+        GITHUB.update(state="none", error="The GitHub tool is not installed on this computer.")
+        return
+    try:
+        proc = subprocess.Popen(
+            [exe, "auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web",
+             "--scopes", "repo"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    except OSError as error:
+        GITHUB.update(state="none", error=str(error))
+        return
+    GITHUB.update(state="waiting", code="", error="")
+
+    def watch():
+        for line in proc.stdout:
+            match = re.search(r"\b([A-Z0-9]{4}-[A-Z0-9]{4})\b", line)
+            if match and not GITHUB["code"]:
+                GITHUB["code"] = match.group(1)
+                open_in_chrome("github-device")
+        proc.wait()
+        if proc.returncode == 0:
+            GITHUB["state"] = "none"
+            github_refresh()
+        if GITHUB["state"] != "connected":
+            GITHUB.update(state="none", code="", error="GitHub sign-in did not finish. Click Connect to try again.")
+
+    threading.Thread(target=watch, daemon=True).start()
+
+
+def github_backup(folder):
+    """Put the workspace in a private repository on the person's own GitHub."""
+    workspace = Path(folder)
+    if not (workspace / ".assistant-name").exists() or workspace.parent != Path.home():
+        return {"ok": False, "error": "That is not an assistant folder."}
+    github_refresh()
+    git = shutil.which("git")
+    if GITHUB["state"] != "connected" or git is None:
+        return {"ok": False, "error": "Connect GitHub first."}
+    ignore = (workspace / ".gitignore").read_text(encoding="utf-8") if (workspace / ".gitignore").exists() else ""
+    if ".env" not in ignore.split():
+        (workspace / ".gitignore").write_text(ignore.rstrip("\n") + "\n.env\n", encoding="utf-8")
+
+    def run(*args):
+        return subprocess.run([git, *args], cwd=str(workspace), capture_output=True, text=True)
+
+    if not (workspace / ".git").exists():
+        run("init", "-q")
+    run("add", "-A")
+    if run("ls-files", ".env").stdout.strip():  # never send the token file
+        run("rm", "--cached", "-q", ".env")
+    run("commit", "-q", "-m", "First backup")
+    repo = workspace.name + "-assistant"
+    if not run("remote", "get-url", "origin").stdout.strip():
+        worked, out = gh("repo", "create", repo, "--private", "--source", str(workspace), "--remote", "origin",
+                         cwd=str(workspace))
+        if not worked and "already exists" not in out:
+            return {"ok": False, "error": out.splitlines()[-1] if out else "GitHub would not create the backup."}
+        if not worked:
+            run("remote", "add", "origin", f"https://github.com/{GITHUB['user']}/{repo}.git")
+    branch = run("rev-parse", "--abbrev-ref", "HEAD").stdout.strip() or "main"
+    pushed = run("push", "-u", "origin", branch)
+    if pushed.returncode != 0:
+        return {"ok": False, "error": (pushed.stderr.strip().splitlines() or ["The backup could not be sent."])[-1]}
+    return {"ok": True, "url": f"https://github.com/{GITHUB['user']}/{repo}"}
 
 
 def open_folder(folder):
@@ -650,6 +765,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send({"ok": True, "claude": open_claude()})
         elif self.path == "/chrome":
             self.send({"ok": body.get("page") in CHROME_PAGES, "chrome": open_in_chrome(body.get("page"))})
+        elif self.path == "/github/connect":
+            github_connect()
+            self.send(dict(GITHUB, ok=True, installed=shutil.which("gh") is not None))
+        elif self.path == "/github/status":
+            github_refresh()
+            self.send(dict(GITHUB, ok=True, installed=shutil.which("gh") is not None))
+        elif self.path == "/github/backup":
+            self.send(github_backup(str(body.get("folder") or "")))
         elif self.path == "/quit":
             self.send({"ok": True})
             threading.Thread(target=self.server.shutdown, daemon=True).start()

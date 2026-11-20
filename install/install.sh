@@ -63,6 +63,10 @@ if command -v node >/dev/null 2>&1; then ok "Node.js already installed"
 elif command -v brew >/dev/null 2>&1 && brew install node >/dev/null 2>&1; then ok "Node.js installed"
 else note "Node.js skipped. Only add-on skills need it; get it from https://nodejs.org if you ever do."
 fi
+if command -v gh >/dev/null 2>&1; then ok "GitHub tool already installed"
+elif command -v brew >/dev/null 2>&1 && brew install gh >/dev/null 2>&1; then ok "GitHub tool installed"
+else note "GitHub tool skipped. Only the optional backup needs it."
+fi
 if [ -d "/Applications/Google Chrome.app" ]; then ok "Chrome already installed"
 elif command -v brew >/dev/null 2>&1 && brew install --cask google-chrome >/dev/null 2>&1; then ok "Chrome installed"
 else note "Chrome is not installed. Get it from https://www.google.com/chrome/ for the Roofr tools."

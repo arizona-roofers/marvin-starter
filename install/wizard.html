@@ -60,6 +60,7 @@
     display: block; margin: 0 0 6px; padding: 9px 14px; font: inherit; font-weight: 700; cursor: pointer;
     color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 9px;
   }
+  button.step[disabled]:not(.done) { opacity: .45; cursor: default; }
   button.step.done { background: transparent; color: var(--ok); border: 1px solid var(--line); }
   table.cmds { border-collapse: collapse; width: 100%; }
   table.cmds td { padding: 7px 0; vertical-align: top; border-top: 1px solid var(--line); }
@@ -164,6 +165,19 @@
           Use the same work email. Then click the puzzle piece at the top right of Chrome and pin <b>Claude</b>.</li>
       </ol>
     </section>
+    <section id="github">
+      <h2>Back up to GitHub (optional)</h2>
+      <p class="hint" style="margin:0 0 12px">GitHub keeps a private copy of your assistant's notes, so nothing is lost if this computer is. Skip it if you are not sure.</p>
+      <p id="gh-missing" class="hint" hidden>The GitHub tool is not on this computer, so this step is not available. Ask Travis if you want it.</p>
+      <ol class="next steps" id="gh-steps">
+        <li><button class="step" id="gh-connect">Connect my GitHub</button>
+          <span id="gh-note">A GitHub page opens. Sign in, then type the code shown here.
+            No account yet? <a href="#" id="gh-signup">Create one first</a>, then click Connect.</span>
+          <div id="gh-code" hidden>Your code: <code id="gh-code-value" style="font-size:22px;letter-spacing:.08em"></code></div></li>
+        <li><button class="step" id="gh-backup" disabled>Back up my assistant</button>
+          <span id="gh-backup-note">Makes a private copy only you can see. Your Roofr token is never included.</span></li>
+      </ol>
+    </section>
     <section>
       <h2>Two more things, when you have a minute</h2>
       <ol class="next">
@@ -235,6 +249,7 @@ $('go').onclick = async () => {
     $('log').replaceChildren(...result.log.map(line => Object.assign(document.createElement('li'), { textContent: line })))
     $('form').hidden = true
     $('finished').hidden = false
+    post('/github/status').then(showGithub)
     window.scrollTo(0, 0)
   } catch (error) {
     $('error').textContent = `${error.message} Nothing is broken: fix it and click again, or send Travis a screenshot.`
@@ -253,7 +268,49 @@ $('open').onclick = async () => {
     : 'The folder is open. Claude did not start by itself: open it from your Start menu or Applications.'
 }
 
-for (const button of document.querySelectorAll('button.step')) {
+const post = async (path, data = {}) => (await fetch(path, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+})).json()
+
+function showGithub(s) {
+  $('gh-missing').hidden = s.installed
+  $('gh-steps').hidden = !s.installed
+  if (s.state === 'connected') {
+    $('gh-connect').classList.add('done')
+    $('gh-connect').textContent = `✓ Connected as ${s.user}`
+    $('gh-connect').disabled = true
+    $('gh-note').hidden = true
+    $('gh-code').hidden = true
+    $('gh-backup').disabled = false
+  } else if (s.state === 'waiting') {
+    $('gh-code').hidden = !s.code
+    $('gh-code-value').textContent = s.code
+    $('gh-connect').textContent = 'Waiting for GitHub…'
+    setTimeout(async () => showGithub(await post('/github/status')), 2500)
+  } else {
+    $('gh-connect').textContent = 'Connect my GitHub'
+    $('gh-code').hidden = true
+    if (s.error) $('gh-note').textContent = s.error
+  }
+}
+$('gh-connect').onclick = async () => showGithub(await post('/github/connect'))
+$('gh-signup').onclick = event => { event.preventDefault(); post('/chrome', { page: 'github-signup' }) }
+$('gh-backup').onclick = async () => {
+  $('gh-backup').disabled = true
+  $('gh-backup').textContent = 'Backing up…'
+  const done = await post('/github/backup', { folder: result.folder })
+  if (done.ok) {
+    $('gh-backup').classList.add('done')
+    $('gh-backup').textContent = '✓ Backed up'
+    $('gh-backup-note').textContent = `Private copy: ${done.url}`
+  } else {
+    $('gh-backup').disabled = false
+    $('gh-backup').textContent = 'Back up my assistant'
+    $('gh-backup-note').textContent = done.error
+  }
+}
+
+for (const button of document.querySelectorAll('button.step[data-page]')) {
   button.onclick = async () => {
     await fetch('/chrome', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: button.dataset.page }),
