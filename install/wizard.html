@@ -521,6 +521,10 @@
             <button type="button" class="copy" id="gh-code-copy">Copy</button></div></li>
         <li><button class="step" id="gh-backup" disabled>Back up my assistant</button>
           <span id="gh-backup-note">Makes a private copy only you can see. Your Roofr token is never included.</span></li>
+        <li><b>Join the Arizona Roofers GitHub</b>
+          <input type="text" id="gh-org-email" inputmode="email" autocomplete="email" placeholder="you@arizonaroofers.com" style="margin:8px 0">
+          <button class="step" id="gh-org-send">Send my invitation</button>
+          <span id="gh-org-note">GitHub emails you an invitation at your work address. Accept it, and Anthony will give you access to the tools you need.</span></li>
       </ol>
     </section>
     <div class="nav"><button class="go quiet back" data-go="8">Back</button><button class="go next" id="gh-next" data-go="10" disabled>Next</button></div>
@@ -641,6 +645,7 @@ function showFinale() {
       done.connectors >= 3 ? 'Gmail, Calendar and Drive are connected.'
         : done.connectorsKnown ? `${done.connectors} of 3 connected.` : 'Could not be checked from here.', 8],
     [done.github, 'GitHub backup', done.github ? 'Connected.' : 'Not connected yet.', 9],
+    [Boolean(done.org), 'Arizona Roofers GitHub', done.org ? 'Invitation sent to your work email.' : 'Invitation not sent yet.', 9],
   ]
   if (result && result.agy) rows.push([Boolean(done.agy), 'Antigravity',
     done.agy ? 'Opened in a terminal. Sign in there with your work Google account.' : 'Installed. Open it once to sign in with your work Google account.', 'agy'])
@@ -818,6 +823,7 @@ $('go').onclick = async () => {
 function showAccount(a) {
   const text = $('acct-text'), button = $('acct-login')
   button.hidden = true
+  if ((a.state === 'work') && !$('gh-org-email').value) $('gh-org-email').value = a.email
   if (a.state === 'work') {
     text.textContent = `\u2713 Already signed in as ${a.email}${a.org ? ` (${a.org})` : ''}. Use this same account in the Claude app.`
   } else if (a.state === 'other') {
@@ -918,6 +924,24 @@ $('gh-code-copy').onclick = async () => {
     $('gh-code-copy').textContent = 'Select it and copy'
   }
 }
+$('gh-org-send').onclick = async () => {
+  $('gh-org-send').disabled = true
+  $('gh-org-send').textContent = 'Sending…'
+  const sent = await post('/github/org-invite', { email: $('gh-org-email').value, folder: result ? result.folder : '' })
+  if (sent.ok) {
+    $('gh-org-send').classList.add('done')
+    $('gh-org-send').textContent = sent.status === 'already_member' ? '\u2713 Already a member' : '\u2713 Invitation sent'
+    $('gh-org-note').textContent = sent.status === 'already_member'
+      ? 'You are already in the Arizona Roofers GitHub.'
+      : 'Open the email from GitHub in your work inbox and click Join. Sign in with the GitHub account you just connected.'
+    done.org = true
+  } else {
+    $('gh-org-send').disabled = false
+    $('gh-org-send').textContent = 'Send my invitation'
+    $('gh-org-note').textContent = sent.error
+  }
+}
+
 $('gh-have').onclick = () => { $('gh-have').setAttribute('aria-pressed', 'true'); $('gh-signup').setAttribute('aria-pressed', 'false') }
 $('gh-signup').onclick = () => {
   $('gh-signup').setAttribute('aria-pressed', 'true'); $('gh-have').setAttribute('aria-pressed', 'false')

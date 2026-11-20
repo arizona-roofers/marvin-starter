@@ -1008,6 +1008,39 @@ def github_backup(folder):
     return {"ok": True, "url": f"https://github.com/{GITHUB['user']}/{repo}"}
 
 
+def org_invite(email, folder=""):
+    """Ask the company's server to invite this work email to the Arizona Roofers GitHub."""
+    import urllib.error
+    import urllib.request
+    email = str(email or "").strip().lower()
+    if not re.fullmatch(r"[a-z0-9._%+\-]{1,64}@" + re.escape(WORK_DOMAIN), email):
+        return {"ok": False, "error": f"Use your {WORK_DOMAIN} email address."}
+    token = INSTALLER_TOKEN
+    env_file = Path(folder) / ".env" if folder else None
+    if not token and env_file and env_file.parent.parent == Path.home() and env_file.exists():
+        for line in env_file.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.startswith("ROOFR_EXTERNAL_TOKEN="):
+                token = line.split("=", 1)[1].strip()
+    if not token:
+        return {"ok": False, "error": "This computer has no company access token yet. Tell Travis."}
+    request = urllib.request.Request(
+        "https://roofr-search.vercel.app/api/external/github-invite", method="POST",
+        data=json.dumps({"email": email}).encode("utf-8"),
+        headers={"Authorization": "Bearer " + token, "Content-Type": "application/json", "User-Agent": "assistant-setup"})
+    try:
+        with urllib.request.urlopen(request, timeout=40) as reply:
+            body = json.loads(reply.read())
+    except urllib.error.HTTPError as error:
+        try:
+            body = json.loads(error.read())
+        except ValueError:
+            body = {}
+        return {"ok": False, "error": body.get("detail") or "The invitation could not be sent. Tell Travis."}
+    except (OSError, ValueError):
+        return {"ok": False, "error": "The invitation could not be sent. Check your internet connection and try again."}
+    return {"ok": bool(body.get("ok")), "status": body.get("status", ""), "detail": body.get("detail", "")}
+
+
 def open_folder(folder):
     if IS_WINDOWS:
         os.startfile(folder)  # noqa: S606 - the person's own new folder
@@ -1674,6 +1707,8 @@ class Handler(BaseHTTPRequestHandler):
             ensure_gh()
             github_refresh()
             self.send(dict(GITHUB, ok=True, installed=gh_path() is not None))
+        elif self.path == "/github/org-invite":
+            self.send(org_invite(body.get("email"), str(body.get("folder") or "")))
         elif self.path == "/github/backup":
             self.send(github_backup(str(body.get("folder") or "")))
         elif self.path == "/quit":
