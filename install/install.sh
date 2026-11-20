@@ -81,7 +81,12 @@ fi
 step "Opening setup in your browser"
 first="$(id -F 2>/dev/null | awk '{print $1}')"
 export ASSISTANT_USER_NAME="${first:-}"
-python3 "$STARTER/install/wizard.py"
+# ASSISTANT_ANSWERS_FILE (a JSON file of answers) skips the page; the automated test uses it.
+if [ -n "${ASSISTANT_ANSWERS_FILE:-}" ]; then
+  python3 "$STARTER/install/wizard.py" --answers "$ASSISTANT_ANSWERS_FILE" || die "Setup did not finish."
+else
+  python3 "$STARTER/install/wizard.py" || die "Setup did not finish."
+fi
 }
 
 main "$@" </dev/null

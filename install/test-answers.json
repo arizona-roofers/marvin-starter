@@ -1,0 +1,10 @@
+{
+  "assistant": "Friday",
+  "user": "Pat",
+  "role": "Sales Rep",
+  "style": "Casual",
+  "color": "Teal",
+  "mode": "bypassPermissions",
+  "remote": true,
+  "colors": true
+}

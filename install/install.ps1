@@ -132,4 +132,7 @@ else {
 
 Write-Step 'Opening setup in your browser'
 $env:ASSISTANT_USER_NAME = (Get-Culture).TextInfo.ToTitleCase(($env:USERNAME -split '[\s._]')[0].ToLower())
-& $python (Join-Path $Starter 'install\wizard.py')
+# ASSISTANT_ANSWERS_FILE (a JSON file of answers) skips the page; the automated test uses it.
+if ($env:ASSISTANT_ANSWERS_FILE) { & $python (Join-Path $Starter 'install\wizard.py') --answers $env:ASSISTANT_ANSWERS_FILE }
+else { & $python (Join-Path $Starter 'install\wizard.py') }
+if ($LASTEXITCODE -ne 0) { throw 'Setup did not finish.' }

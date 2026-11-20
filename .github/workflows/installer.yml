@@ -1,0 +1,58 @@
+name: Installer
+
+# Runs the real install scripts on a fresh Windows machine and a fresh Mac, with
+# the setup page's answers supplied from a file, then checks what they built.
+
+on:
+  push:
+    branches: [master]
+    paths: ['install/**', 'mods/**', '.claude/**', '.github/workflows/installer.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      ROOFR_EXTERNAL_TOKEN: test_token_not_real_0000000000
+      ASSISTANT_ANSWERS_FILE: ${{ github.workspace }}/install/test-answers.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the installer (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Get-Content install\install.ps1 -Raw | Invoke-Expression
+
+      - name: Run the installer (Mac)
+        if: runner.os == 'macOS'
+        run: bash install/install.sh < /dev/null
+
+      - name: Check what it built
+        shell: bash
+        run: python3 install/check-install.py first || python install/check-install.py first
+
+      - name: Change a note, then run the installer again (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Add-Content "$HOME\friday\state\goals.md" "my own note"
+          Get-Content install\install.ps1 -Raw | Invoke-Expression
+
+      - name: Change a note, then run the installer again (Mac)
+        if: runner.os == 'macOS'
+        run: |
+          echo "my own note" >> "$HOME/friday/state/goals.md"
+          bash install/install.sh < /dev/null
+
+      - name: Check the second run kept everything
+        shell: bash
+        run: python3 install/check-install.py again || python install/check-install.py again
