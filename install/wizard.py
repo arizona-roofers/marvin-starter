@@ -1013,7 +1013,7 @@ def org_invite(email, folder=""):
     import urllib.error
     import urllib.request
     email = str(email or "").strip().lower()
-    if not re.fullmatch(r"[a-z0-9._%+\-]{1,64}@" + re.escape(WORK_DOMAIN), email):
+    if not re.fullmatch(r"[a-z0-9._\-]{1,64}@" + re.escape(WORK_DOMAIN), email):
         return {"ok": False, "error": f"Use your {WORK_DOMAIN} email address."}
     token = INSTALLER_TOKEN
     env_file = Path(folder) / ".env" if folder else None
