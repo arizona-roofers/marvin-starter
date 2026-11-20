@@ -455,8 +455,51 @@ and start a new chat.
 """
 
 
-def start_here(name, role=""):
+START_HERE_CODEX = """# Start here
+
+{name} is your AI assistant, running in ChatGPT. You talk to it in plain English. The
+commands below are shortcuts: type one in the chat box and press Enter. In ChatGPT they
+begin with a dollar sign.
+
+## The four commands
+
+| Type this | When | What happens |
+|-----------|------|--------------|
+| `$start` | First thing, in a new chat | {name} reads its notes and tells you where things stand |
+| `$save` | When you are done | {name} writes a summary and saves it, so tomorrow's chat picks up from here |
+| `$update` | In the middle of work | A quick checkpoint, so nothing is lost |
+| `$help` | Any time | Lists every command and what {name} can do |
+
+Think of `$start` and `$save` as bookends. Everything in between is just conversation.
+When a chat has got long, run `$save` and start a new chat.
+
+## Handy extras
+
+| Type this | What happens |
+|-----------|--------------|
+| `$report` | A summary of your week |
+| `$status` | Checks that everything is connected and working |
+
+## Things to try
+
+{examples}
+- "Remember that I work Tuesday to Saturday."
+
+## Good to know
+
+- **It remembers.** Tell it something once and it writes it down.
+- **It asks before it sends.** {name} will check with you before sending a message,
+  deleting anything, or changing a company system.
+- **Open it from your desktop.** The shortcut named {name} opens ChatGPT. If it does not
+  land on your folder, choose the folder as the project.
+- **Stuck?** Type "I'm stuck" and say what you were trying to do, or send {contact} a screenshot.
+"""
+
+
+def start_here(name, role="", main="claude"):
     examples = "\n".join(f'- "{line}"' for line in KITS.get(role, DEFAULT_KIT)["try"])
+    if main == "codex":
+        return START_HERE_CODEX.format(name=name, examples=examples, contact=CONTACT)
     return f"""# Start here
 
 {name} is your AI assistant. You talk to it in plain English. The commands below
@@ -707,7 +750,7 @@ def configure(a):
     load_pack(workspace, log)
 
     if not (workspace / "START-HERE.md").exists():
-        (workspace / "START-HERE.md").write_text(start_here(name, a["role"]), encoding="utf-8")
+        (workspace / "START-HERE.md").write_text(start_here(name, a["role"], main), encoding="utf-8")
 
     if existed:
         log.append(f"{workspace} already had a CLAUDE.md, so your notes and profile were kept as they are.")

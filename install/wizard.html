@@ -495,7 +495,7 @@
       <summary>What was set up</summary>
       <ul class="done" id="log-codex"></ul>
     </details>
-    <div class="nav"><span></span><button class="go next" data-go="9">Next: back up to GitHub</button></div>
+    <div class="nav"><span></span><button class="go next" data-go="7">Next: four commands</button></div>
   </div>
 
   <div class="page" data-page="5" hidden>
@@ -547,7 +547,7 @@
 
   <div class="page" data-page="7" hidden>
     <h1>Four commands to know</h1>
-    <p class="lede">Type each one below, the way you will in Claude. It takes twenty seconds.</p>
+    <p class="lede">Type each one below, the way you will in <span id="drill-where">Claude</span>. It takes twenty seconds.</p>
     <section>
       <div class="chat" id="drill-log" aria-live="polite"></div>
       <label for="drill" id="drill-ask">Type <code>/start</code> and press Enter</label>
@@ -743,7 +743,8 @@ function showFinale() {
   const rows = codexMain() ? [
     [true, `${result.assistant} is set up`, 'Its folder, notes, company knowledge and Roofr access.', 0],
     [Boolean(done.codexIn), 'ChatGPT account', done.codexIn ? 'Signed in on this computer.' : 'Not signed in yet.', 4.5],
-    [Boolean(opened.codex), 'The ChatGPT app', opened.codex ? 'Opened on your folder.' : 'Not opened yet.', 4.5],
+    [Boolean(opened.codex), 'The ChatGPT app', opened.codex ? 'Opened.' : 'Not opened yet.', 4.5],
+    [done.drill, 'The four commands', done.drill ? 'You typed all four.' : 'Not practised yet.', 7],
     [done.github, 'GitHub backup', done.github ? 'Connected.' : 'Not connected yet.', 9],
   ] : [
     [true, `${result ? result.assistant : 'Your assistant'} is set up`, 'Its folder, notes, company knowledge and Roofr access.', 0],
@@ -814,7 +815,7 @@ function show(n) {
   for (const el of document.querySelectorAll('.page')) el.hidden = Number(el.dataset.page) !== n
   $('progress').hidden = $('bar').hidden = n === 0
   const choices = [0.5, 1, 2, 3]
-  const after = codexMain() ? [4.5, 9, 10] : [4, 5, 6, 7, 8, 9, 10]
+  const after = codexMain() ? [4.5, 7, 9, 10] : [4, 5, 6, 7, 8, 9, 10]
   $('progress').textContent = n <= 3 ? `Step ${choices.indexOf(n) + 1} of 4` : `Almost there: ${after.indexOf(n) + 1} of ${after.length}`
   const total = n <= 3 ? 4 : after.length, at = (n <= 3 ? choices : after).indexOf(n) + 1
   $('bar').replaceChildren(...Array.from({ length: total }, (_, i) =>
@@ -829,7 +830,10 @@ for (const button of document.querySelectorAll('button[data-go]')) {
     const to = Number(button.dataset.go)
     // Leaving the first question: if they use Claude, its pieces start installing now.
     if (page === 0.5 && to === 1 && pickedTools().includes('claude')) post('/installs/start', { claude: true }).then(showInstalls)
-    show(codexMain() && to === 8 ? 4.5 : to)
+    // With Codex as the primary agent the flow is 4.5, 7, 9, 10: the Claude-only pages are stepped over.
+    if (codexMain() && to === 6) show(4.5)
+    else if (codexMain() && to === 8) show(page === 7 ? 9 : 7)
+    else show(to)
   }
 }
 
@@ -944,6 +948,8 @@ $('go').onclick = async () => {
     }
     for (const el of document.querySelectorAll('.the-folder')) el.textContent = result.folder
     for (const el of document.querySelectorAll('.the-name')) el.textContent = result.assistant
+    drillAt = 0
+    askDrill()  // the practice follows the primary agent
     show(codexMain() ? 4.5 : 4)
     post('/installs/status').then(showInstalls)
     post('/github/status').then(showGithub)
@@ -1073,6 +1079,13 @@ $('gh-signup').onclick = () => {
 }
 
 // The four commands, typed once each.
+const DRILL_CODEX = [
+  ['$start', n => `Begins your day. ${n} reads its notes and tells you where things stand.`],
+  ['$save', n => `Ends your session. ${n} writes down what you did, so tomorrow picks up from here.`],
+  ['$update', () => 'A quick checkpoint in the middle of work, so nothing is lost.'],
+  ['$help', n => `Lists every command and what ${n} can do.`],
+]
+const drillList = () => (codexMain() ? DRILL_CODEX : DRILL)
 const DRILL = [
   ['/start', n => `Begins your day. ${n} reads its notes and tells you where things stand.`],
   ['/save', n => `Ends your session. ${n} writes down what you did, so tomorrow picks up from here.`],
@@ -1081,26 +1094,28 @@ const DRILL = [
 ]
 let drillAt = 0
 function askDrill() {
-  const done = drillAt >= DRILL.length
+  const list = drillList(), sign = codexMain() ? 'dollar sign' : 'slash'
+  const done = drillAt >= list.length
+  $('drill-where').textContent = codexMain() ? 'ChatGPT' : 'Claude'
   $('drill').hidden = done
-  $('drill-hint').textContent = done ? '' : 'Start with the slash.'
+  $('drill-hint').textContent = done ? '' : `Start with the ${sign}.`
   $('drill-next').disabled = !done
   if (done) {
     window.setTimeout(() => { doneState.drill = true }, 0)
-    $('drill-ask').textContent = 'That is all four. You will use /start and /save every day.'
+    $('drill-ask').textContent = `That is all four. You will use ${list[0][0]} and ${list[1][0]} every day.`
     return
   }
-  $('drill-ask').innerHTML = `Type <code>${DRILL[drillAt][0]}</code> and press Enter`
-  $('drill').placeholder = DRILL[drillAt][0]
+  $('drill-ask').innerHTML = `Type <code>${list[drillAt][0]}</code> and press Enter`
+  $('drill').placeholder = list[drillAt][0]
   $('drill').value = ''
 }
 $('drill').onkeydown = event => {
   if (event.key !== 'Enter') return
   const typed = $('drill').value.trim().toLowerCase()
-  const [command, explain] = DRILL[drillAt]
+  const [command, explain] = drillList()[drillAt]
   if (typed !== command) {
-    $('drill-hint').textContent = typed.replace(/^\//, '') === command.slice(1)
-      ? 'Close. Put the slash in front, with no space.'
+    $('drill-hint').textContent = typed.replace(/^[\/$]/, '') === command.slice(1)
+      ? `Close. Put the ${codexMain() ? 'dollar sign' : 'slash'} in front, with no space.`
       : `Not quite. Type ${command} exactly.`
     return
   }

@@ -69,6 +69,7 @@ if sys.argv[1:] == ["codex"]:
     check("Codex's settings are written once", whole.count("approval_policy") == 1)
     check("Codex trusts the folder", ("sol']" in whole.lower() or 'sol"]' in whole.lower()) and 'trust_level = "trusted"' in whole)
     check("Claude's color modes left out", not (sol / ".mods").exists())
+    check("START-HERE teaches the dollar-sign commands", "`$start`" in read(sol / "START-HERE.md") and "/compact" not in read(sol / "START-HERE.md"))
     check("Roofr token in .env", "ROOFR_EXTERNAL_TOKEN=" in read(sol / ".env"))
     spot = (Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "OpenAI" / "Codex" / "bin" / "codex.exe") if os.name == "nt" \
         else (home / ".local" / "bin" / "codex")
