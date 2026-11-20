@@ -7,6 +7,10 @@
 --contact (or ASSISTANT_HELP_CONTACT in the environment or .env) is who setup tells
 people to ask when they are stuck. Without it, setup says "your manager".
 
+--tools (or ASSISTANT_DEFAULT_TOOLS) is which assistants start ticked beside Claude on
+the "Which assistants do you want?" page: any of gemini, codex, grok, separated by
+commas. Without it, only Claude is ticked. People can still tick or untick any of them.
+
 Writes to dist/ (never committed):
     Install Assistant.cmd          Windows: double-click
     Install Assistant (Mac).zip    Mac: unzip, right-click the file inside, Open
@@ -30,6 +34,7 @@ WINDOWS = """@echo off
 title Install your AI assistant
 set "ROOFR_EXTERNAL_TOKEN={token}"
 set "ASSISTANT_HELP_CONTACT={contact}"
+set "ASSISTANT_DEFAULT_TOOLS={tools}"
 set "ASSISTANT_INSTALL_FILE=%~f0"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol='Tls12'; irm {raw}/install.ps1 | iex"
 if errorlevel 1 (
@@ -43,6 +48,7 @@ exit /b
 MAC = """#!/bin/bash
 export ROOFR_EXTERNAL_TOKEN='{token}'
 export ASSISTANT_HELP_CONTACT='{contact}'
+export ASSISTANT_DEFAULT_TOOLS='{tools}'
 export ASSISTANT_INSTALL_FILE="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 curl -fsSL {raw}/install.sh | bash
 status=$?
@@ -90,6 +96,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--token")
     parser.add_argument("--contact", help="who setup tells people to ask for help")
+    parser.add_argument("--tools", help="assistants ticked by default beside Claude: gemini,codex,grok")
     parser.add_argument("--out", help="folder to write the install files to (default: dist/ beside this script's parent)")
     parser.add_argument("--pack", help="folder of company notes to carry (default: ./tools/starter-company-pack)")
     args = parser.parse_args()
@@ -105,6 +112,12 @@ def main():
     if not re.fullmatch(r"[A-Za-z0-9 .@-]{1,60}", contact):
         sys.exit("The contact may hold letters, numbers, spaces, dots, @ and hyphens only.")
 
+    known = {"claude", "gemini", "antigravity", "agy", "codex", "grok"}
+    wanted = [w.strip().lower() for w in find_setting("ASSISTANT_DEFAULT_TOOLS", args.tools).split(",") if w.strip()]
+    if set(wanted) - known:
+        sys.exit("Unknown assistant in --tools: " + ", ".join(sorted(set(wanted) - known)) + ". Use gemini, codex or grok.")
+    tools = ",".join(w for w in wanted if w != "claude")
+
     win_pack, count = pack_lines(pack, "::PACK:") if pack.is_dir() else ("", 0)
     mac_pack = pack_lines(pack, "#PACK:")[0] if pack.is_dir() else ""
 
@@ -112,7 +125,7 @@ def main():
     dist.mkdir(parents=True, exist_ok=True)
 
     windows = dist / "Install Assistant.cmd"
-    windows.write_bytes((WINDOWS.format(token=token, raw=RAW, contact=contact) + win_pack).replace("\n", "\r\n").encode("ascii"))
+    windows.write_bytes((WINDOWS.format(token=token, raw=RAW, contact=contact, tools=tools) + win_pack).replace("\n", "\r\n").encode("ascii"))
 
     # A zip keeps the Mac file's "can be run" flag, which a bare download loses.
     mac_zip = dist / "Install Assistant (Mac).zip"
@@ -120,9 +133,9 @@ def main():
     info.external_attr = 0o100755 << 16
     info.create_system = 3
     with zipfile.ZipFile(mac_zip, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr(info, MAC.format(token=token, raw=RAW, contact=contact) + mac_pack)
+        z.writestr(info, MAC.format(token=token, raw=RAW, contact=contact, tools=tools) + mac_pack)
 
-    print(f"Built:\n  {windows}\n  {mac_zip}\n\nHelp contact: {contact}\nBoth hold the Roofr token"
+    print(f"Built:\n  {windows}\n  {mac_zip}\n\nHelp contact: {contact}\nTicked beside Claude: {tools or 'nothing'}\nBoth hold the Roofr token"
           + (f" and the company knowledge pack ({count} files)" if count else " (no knowledge pack found)")
           + ". Share them with staff only.")
 

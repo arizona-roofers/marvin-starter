@@ -81,8 +81,23 @@ except ValueError:
 check("Antigravity never asks", agy.get("toolPermission") == "always-proceed")
 check("Antigravity trusts the assistant's folder", str(work) in agy.get("trustedWorkspaces", []))
 check("Antigravity is pointed at CLAUDE.md", "CLAUDE.md" in read(work / "GEMINI.md"))
-agy_tool = (Path(os.environ.get("LOCALAPPDATA", "")) / "agy" / "bin" / "agy.exe") if os.name == "nt" else (home / ".local" / "bin" / "agy")
-note("Antigravity installed", shutil.which("agy") is not None or agy_tool.exists())
+
+print("Other assistants")
+check("Codex and Grok are pointed at CLAUDE.md", "CLAUDE.md" in read(work / "AGENTS.md"))
+local = Path(os.environ.get("LOCALAPPDATA", ""))
+ending = ".cmd" if os.name == "nt" else ".command"
+for label, command, flag, windows_spot, other_spot in (
+        ("Antigravity", "agy", "", local / "agy" / "bin" / "agy.exe", home / ".local" / "bin" / "agy"),
+        ("Codex", "codex", "--dangerously-bypass-approvals-and-sandbox",
+         local / "Programs" / "OpenAI" / "Codex" / "bin" / "codex.exe", home / ".local" / "bin" / "codex"),
+        ("Grok", "grok", "--always-approve", home / ".grok" / "bin" / "grok.exe", home / ".grok" / "bin" / "grok")):
+    opener = read(work / f"Open {label}{ending}")
+    check(f"{label} has a file that opens it in the folder", command in opener and "cd " in opener)
+    if flag:
+        check(f"{label} never asks", flag in opener)
+    if os.name != "nt":
+        check(f"{label}'s file can be run", os.access(work / f"Open {label}{ending}", os.X_OK))
+    note(f"{label} installed", shutil.which(command) is not None or (windows_spot if os.name == "nt" else other_spot).exists())
 
 print("Shortcut and tools")
 desktops = [home / "Desktop"] + sorted(home.glob("OneDrive*/Desktop"))
