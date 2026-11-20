@@ -411,6 +411,12 @@ Personal green, and {name}'s own color for work on the assistant itself.
 `/tint <topic>` changes it, `/tint off` clears it. To add or change topics,
 edit `.mods/session-tint/hooks/topics.js`.
 
+### Antigravity
+
+If you chose it in setup, Google's assistant is in the terminal too: open a terminal
+in this folder and type `agy`. It reads the same notes through `GEMINI.md`. Sign in
+with your work Google account the first time.
+
 ### Usage bar
 
 Above the message box, three meters show how full this chat is (Context) and
@@ -716,6 +722,10 @@ def configure(a):
         log.append("Color modes installed.")
 
     write_settings(a, mod_dir, log)
+    if a.get("agy"):
+        write_agy_settings(a, workspace, name, log)
+        if not os.environ.get("ASSISTANT_SKIP_INSTALLS"):
+            install_agy()
     try:
         write_shortcut(name, workspace, log)
     except OSError:
@@ -731,7 +741,7 @@ def configure(a):
     if shutil.which("git") and not (workspace / ".git").exists():
         subprocess.run(["git", "init", "-q"], cwd=str(workspace), check=False)
 
-    return {"ok": True, "log": log, "folder": str(workspace), "assistant": name,
+    return {"ok": True, "log": log, "folder": str(workspace), "assistant": name, "agy": bool(a.get("agy")),
             "user": a["user"] if a["user"] != "the owner of this computer" else "",
             "try": KITS.get(a["role"], DEFAULT_KIT)["try"][:3]}
 
@@ -1449,6 +1459,112 @@ def installs_status():
             "busy": any(r["state"] in ("waiting", "working") for r in rows)}
 
 
+# --- Antigravity in the terminal: Google's assistant, as a second one beside Claude ---
+
+AGY_POINTER = """# {name}
+
+Read `CLAUDE.md` in this folder first and follow it: it says who you are, who you work
+for and how. The notes it points to (`state/`, `company/`) are yours to read and keep up.
+
+The files in `.claude/commands/` are plain instructions. When the person types `/start`
+or `/save`, read `.claude/commands/start.md` or `.claude/commands/save.md` and do what it says.
+"""
+AGY_JOB = {"thread": None}
+
+
+def agy_path():
+    found = shutil.which("agy")
+    if found:
+        return found
+    spot = (Path(os.environ.get("LOCALAPPDATA", "")) / "agy" / "bin" / "agy.exe") if IS_WINDOWS \
+        else (Path.home() / ".local" / "bin" / "agy")
+    return str(spot) if spot.is_file() else None
+
+
+def _get_agy():
+    """Google's own installer for the Antigravity terminal tool."""
+    if IS_WINDOWS:
+        worked, note = _run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                             "irm https://antigravity.google/cli/install.ps1 | iex"])
+    else:
+        worked, note = _run(["bash", "-c", "curl -fsSL https://antigravity.google/cli/install.sh | bash"])
+    refresh_path()
+    return worked, note
+
+
+def write_agy_settings(a, workspace, name, log):
+    """Antigravity's own settings file: trust the assistant's folder, and never ask if that was chosen."""
+    for pointer in ("GEMINI.md", "AGENTS.md"):
+        if not (workspace / pointer).exists():
+            (workspace / pointer).write_text(AGY_POINTER.format(name=name), encoding="utf-8")
+    path = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
+    settings = {}
+    if path.exists():
+        try:
+            settings = json.loads(path.read_text(encoding="utf-8-sig"))
+        except ValueError:
+            settings = None
+        if not isinstance(settings, dict) or not isinstance(settings.get("trustedWorkspaces", []), list):
+            log.append("Antigravity's settings file could not be read, so it was left alone. Ask for help.")
+            return
+        backup = path.with_name("settings.json.before-setup")
+        if not backup.exists():
+            shutil.copy2(path, backup)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    trusted = settings.setdefault("trustedWorkspaces", [])
+    if str(workspace) not in trusted:
+        trusted.append(str(workspace))
+    never_asks = bool(a.get("agyBypass", True))
+    if never_asks:
+        settings["toolPermission"] = "always-proceed"
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    log.append("Antigravity set up for this folder" + (": it never stops to ask." if never_asks else "."))
+
+
+def install_agy():
+    """Fetch Antigravity in the background; its row shows in the page with the other installs."""
+    with INSTALL_LOCK:
+        if any(r["id"] == "agy" for r in INSTALLS):
+            return
+        INSTALLS.append({"id": "agy", "label": "Antigravity", "why": "Google's assistant, in the terminal",
+                         "state": "waiting", "note": ""})
+
+    def work():
+        try:
+            refresh_path()
+            if agy_path():
+                _mark("agy", "done", "already here")
+                return
+            _mark("agy", "working")
+            _, note = _get_agy()
+            _mark("agy", "done" if agy_path() else "failed", "" if agy_path() else (note or "could not be installed"))
+        except Exception as error:
+            _mark("agy", "failed", f"{type(error).__name__}: {error}"[:160])
+
+    AGY_JOB["thread"] = threading.Thread(target=work, daemon=True)
+    AGY_JOB["thread"].start()
+
+
+def open_agy(folder=""):
+    """A terminal window on the assistant's folder, running Antigravity. Its first run asks for a Google sign-in."""
+    workspace = Path(folder) if folder else None
+    tool = agy_path()
+    if not (tool and workspace and workspace.parent == Path.home() and (workspace / ".assistant-name").exists()):
+        return False
+    try:
+        if IS_WINDOWS:
+            subprocess.Popen(["cmd", "/c", "start", "", "cmd", "/k", f'"{tool}"'], cwd=str(workspace))
+            return True
+        if IS_MAC:
+            quoted = str(workspace).replace("\\", "\\\\").replace('"', '\\"')
+            path = tool.replace("\\", "\\\\").replace('"', '\\"')
+            script = f'tell application "Terminal" to do script "cd \\"{quoted}\\" && \\"{path}\\""'
+            return subprocess.run(["osascript", "-e", script], capture_output=True).returncode == 0
+    except OSError:
+        pass
+    return False
+
+
 PAGE = (Path(__file__).resolve().parent / "wizard.html")
 
 
@@ -1514,6 +1630,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send({"ok": False, "error": f"{type(error).__name__}: {error}"})
         elif self.path == "/open":
             self.send({"ok": True, "claude": open_claude(str(body.get("folder") or ""))})
+        elif self.path == "/agy/open":
+            self.send({"ok": True, "opened": open_agy(str(body.get("folder") or "")), "installed": agy_path() is not None})
         elif self.path == "/connectors/status":
             self.send(connectors_status(bool(body.get("fresh"))))
         elif self.path == "/installs/status":
@@ -1558,6 +1676,9 @@ def main():
         for row in INSTALLS:
             print(f"  {row['label']}: {row['state']}" + (f" ({row['note']})" if row["note"] else ""))
         result = configure(json.loads(Path(args.answers).read_text(encoding="utf-8")))
+        if AGY_JOB["thread"]:
+            AGY_JOB["thread"].join()
+            print("  Antigravity: " + _row("agy")["state"] + (f" ({_row('agy')['note']})" if _row("agy")["note"] else ""))
         print("\n".join(result["log"]))
         return
 

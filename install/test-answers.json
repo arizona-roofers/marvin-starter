@@ -7,5 +7,6 @@
   "mode": "bypassPermissions",
   "remote": true,
   "colors": true,
-  "roofr": "Pat Example"
+  "roofr": "Pat Example",
+  "agy": true
 }

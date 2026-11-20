@@ -73,6 +73,17 @@ check("starting model set for the role", settings.get("model") == "sonnet")
 check("chat history kept", settings.get("cleanupPeriodDays") == 3650)
 check("mod folder registered", "session-tint" in settings.get("env", {}).get("CLAUDE_CODE_PLUGIN_DIRS", ""))
 
+print("Antigravity")
+try:
+    agy = json.loads(read(home / ".gemini" / "antigravity-cli" / "settings.json") or "{}")
+except ValueError:
+    agy = {}
+check("Antigravity never asks", agy.get("toolPermission") == "always-proceed")
+check("Antigravity trusts the assistant's folder", str(work) in agy.get("trustedWorkspaces", []))
+check("Antigravity is pointed at CLAUDE.md", "CLAUDE.md" in read(work / "GEMINI.md"))
+agy_tool = (Path(os.environ.get("LOCALAPPDATA", "")) / "agy" / "bin" / "agy.exe") if os.name == "nt" else (home / ".local" / "bin" / "agy")
+note("Antigravity installed", shutil.which("agy") is not None or agy_tool.exists())
+
 print("Shortcut and tools")
 desktops = [home / "Desktop"] + sorted(home.glob("OneDrive*/Desktop"))
 check("desktop shortcut made", any((d / n).exists() for d in desktops for n in ("Friday.cmd", "Friday.command")))

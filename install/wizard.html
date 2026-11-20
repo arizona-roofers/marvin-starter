@@ -380,6 +380,10 @@
         <span><b>Remote control</b>Pick up any chat from the Claude app on your phone.</span></label>
       <label class="check"><input type="checkbox" id="tint" checked>
         <span><b>Color modes</b>Each chat gets a background color and a colored shape on its title, by topic.</span></label>
+      <label class="check"><input type="checkbox" id="agy" checked>
+        <span><b>Antigravity in the terminal</b>Google's assistant, installed beside Claude and pointed at the same folder and notes. You sign in with your work Google account.</span></label>
+      <label class="check" id="agy-bypass-row" style="margin-left:28px"><input type="checkbox" id="agy-bypass" checked>
+        <span><b>Antigravity never stops to ask</b>The same as Bypass above, for Antigravity. Untick it to have it ask before it changes files or runs commands.</span></label>
 
       <div id="token-row" hidden>
         <label for="token">Roofr access token</label>
@@ -612,6 +616,20 @@ $('dock-head').onclick = () => {
 const done = { chrome: 0, drill: false, connectors: 0, connectorsKnown: false, github: false }
 const doneState = done
 
+$('agy').onchange = () => { $('agy-bypass-row').hidden = !$('agy').checked }
+
+async function openAgy() {
+  const opened = await post('/agy/open', { folder: result ? result.folder : '' })
+  if (opened.opened) done.agy = true
+  showFinale()
+  if (!opened.opened) {
+    const row = [...$('ready').children].find(li => li.textContent.includes('Antigravity'))
+    if (row) row.querySelector('small').textContent = opened.installed
+      ? 'It could not be opened from here. Open a terminal in your folder and type agy.'
+      : 'Still installing, or it could not be installed. Look at the installs panel, then try again.'
+  }
+}
+
 function showFinale() {
   $('final-user').textContent = result && result.user ? `, ${result.user}` : ''
   const rows = [
@@ -624,6 +642,8 @@ function showFinale() {
         : done.connectorsKnown ? `${done.connectors} of 3 connected.` : 'Could not be checked from here.', 8],
     [done.github, 'GitHub backup', done.github ? 'Connected.' : 'Not connected yet.', 9],
   ]
+  if (result && result.agy) rows.push([Boolean(done.agy), 'Antigravity',
+    done.agy ? 'Opened in a terminal. Sign in there with your work Google account.' : 'Installed. Open it once to sign in with your work Google account.', 'agy'])
   $('ready').replaceChildren(...rows.map(([on, title, detail, go]) => {
     const li = document.createElement('li')
     if (on) li.className = 'on'
@@ -633,8 +653,8 @@ function showFinale() {
       Object.assign(document.createElement('small'), { textContent: detail }))
     li.append(mark, text)
     if (!on && go) {
-      const fix = Object.assign(document.createElement('button'), { type: 'button', className: 'copy', textContent: 'Finish it' })
-      fix.onclick = () => show(go)
+      const fix = Object.assign(document.createElement('button'), { type: 'button', className: 'copy', textContent: go === 'agy' ? 'Open it' : 'Finish it' })
+      fix.onclick = go === 'agy' ? openAgy : () => show(go)
       li.append(fix)
     }
     return li
@@ -771,6 +791,7 @@ $('go').onclick = async () => {
       body: JSON.stringify({
         assistant: chosenName(), color, style: $('style').value, user: $('user').value, role: $('role').value, roofr: $('roofr').value,
         mode: $('mode').value, remote: $('remote').checked, colors: $('tint').checked, token: $('token').value,
+        agy: $('agy').checked, agyBypass: $('agy-bypass').checked,
       }),
     })
     result = await response.json()
@@ -780,6 +801,7 @@ $('go').onclick = async () => {
     $('log').replaceChildren(...result.log.map(line => Object.assign(document.createElement('li'), { textContent: line })))
     for (const el of document.querySelectorAll('.the-name')) el.textContent = result.assistant
     show(4)
+    post('/installs/status').then(showInstalls)
     post('/github/status').then(showGithub)
     post('/app/status').then(showApp)
     post('/account/status').then(showAccount)
