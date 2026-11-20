@@ -168,6 +168,13 @@
   ul.conn .mark { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--edge); flex: none; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
   ul.conn li.on .mark { background: var(--ok); border-color: var(--ok); color: #fff; }
   ul.conn li.on .mark::before { content: "\2713"; }
+  .vs { display: grid; grid-template-columns: 1fr 1.5fr; gap: 14px; padding: 11px 0; border-top: 1px solid var(--edge); align-items: start; }
+  .vs > span:first-child { color: var(--soft); font-size: 15px; }
+  .vs b { color: var(--accent); }
+  .vs.head { border-top: 0; padding-top: 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+  .vs.head > span:first-child { color: var(--soft); }
+  .vs.head > span:last-child { color: var(--accent); }
+  @media (max-width: 520px) { .vs { grid-template-columns: 1fr; gap: 2px; } .vs.head > span:first-child { display: none; } }
   .progress { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -235,7 +242,22 @@
       <div class="orb" id="orb" aria-hidden="true">J</div>
       <h1>Meet <span id="title-name">Jarvis</span>,<br>your AI assistant</h1>
     </div>
-    <p class="lede">A few quick choices. Everything can be changed later.</p>
+    <p class="lede">It is Claude, set up for your job at Arizona Roofers.</p>
+    <section class="why">
+      <h2>How this is different from regular Claude</h2>
+      <div class="vs head"><span>Regular Claude</span><span class="the-name">Jarvis</span></div>
+      <div class="vs"><span>Starts every chat from zero.</span>
+        <span><b>Remembers.</b> Keeps notes on your work and picks up where you left off, even days later.</span></div>
+      <div class="vs"><span>Knows nothing about our company.</span>
+        <span><b>Knows Arizona Roofers.</b> The booking rules, the call scripts, the tools, and who to ask.</span></div>
+      <div class="vs"><span>Only knows what you paste in.</span>
+        <span><b>Looks things up itself.</b> Jobs in Roofr, phone calls, your email and your calendar.</span></div>
+      <div class="vs"><span>Tells you what to click.</span>
+        <span><b>Does the clicking.</b> Makes the change in Roofr for you, in your own sign-in, after you say yes.</span></div>
+      <div class="vs"><span>Stays on the screen you opened it on.</span>
+        <span><b>Goes with you.</b> Start something at your desk and check on it from your phone.</span></div>
+    </section>
+    <p class="lede" style="margin-bottom:14px">A few quick choices and it is yours. Everything can be changed later.</p>
     <section>
       <h2>Your assistant</h2>
       <label id="name-label">What should it be called?</label>
