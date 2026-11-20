@@ -442,13 +442,15 @@
       <p id="cx-text" style="margin:0">Checking whether you are already signed in…</p>
       <button class="step" id="cx-login" style="margin-top:12px" hidden>Sign in to ChatGPT</button>
     </section>
-    <button class="go" id="cx-open">Open ChatGPT on my folder</button>
+    <button class="go" id="cx-open">Open ChatGPT</button>
     <p class="hint" id="cx-note" style="text-align:center;margin:12px 0 20px">If the ChatGPT app is not on this computer yet, this opens its installer first.</p>
     <section>
       <h2>Once ChatGPT is open</h2>
       <ol class="next">
         <li>Sign in if it asks.</li>
-        <li>It should open on your assistant's folder. If it does not, choose <b>Open folder</b> and pick:<br><span class="path the-folder"></span></li>
+        <li>Point it at your assistant's folder. Under the message box, click <b>Choose project</b>, add a project, and select this folder:<br><span class="path the-folder"></span>
+          <button type="button" class="copy" id="cx-copy">Copy</button></li>
+        <li>You will know it worked when it can answer a question about your jobs in Roofr.</li>
         <li>Type <b>$start</b> and press Enter. Your commands are skills here, so they begin with a dollar sign: <b>$start</b>, <b>$save</b>, <b>$update</b>, <b>$help</b>.</li>
       </ol>
     </section>
@@ -708,7 +710,7 @@ function showFinale() {
   $('final-user').textContent = result && result.user ? `, ${result.user}` : ''
   if (codexMain()) {
     $('tries-hint').textContent = 'Click one to copy it, then paste it into ChatGPT after $start.'
-    $('final-hint').textContent = 'It opens on your folder. Type $start.'
+    $('final-hint').textContent = 'Choose your folder as the project, then type $start.'
     if (!$('final-open').dataset.clicked) $('final-open').textContent = 'Open ChatGPT'
   }
   const rows = codexMain() ? [
@@ -1140,12 +1142,15 @@ $('copy-folder').onclick = async () => {
 async function openChatGPT() {
   const reply = await post('/tool/open', { tool: 'codex', folder: result ? result.folder : '' })
   if (reply.opened) opened.codex = true
-  $('cx-note').textContent = reply.opened ? 'ChatGPT is opening on your folder. Follow the steps below, then come back here and click Next.'
+  $('cx-note').textContent = reply.opened ? 'ChatGPT is opening. Follow the steps below, then come back here and click Next.'
     : reply.installed ? 'It did not open by itself. In your folder, double-click "Open Codex".'
       : 'Codex is still installing. Watch the installs panel, then click again.'
   return reply.opened
 }
 $('cx-open').onclick = openChatGPT
+$('cx-copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(result.folder); $('cx-copy').textContent = 'Copied' } catch (error) { $('cx-copy').textContent = 'Select it and copy' }
+}
 $('cx-login').onclick = async () => showCodex(await post('/codex/login'))
 
 $('final-open').onclick = async () => {
