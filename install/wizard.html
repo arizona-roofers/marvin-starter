@@ -365,7 +365,20 @@
       <input type="text" id="roofr" maxlength="60" placeholder="First and last name">
       <p class="hint">With this, "show me my jobs" works from day one.</p>
     </section>
-    <div class="nav"><button class="go quiet back" data-go="1">Back</button><button class="go next" data-go="3">Next</button></div>
+    <div class="nav"><button class="go quiet back" data-go="1">Back</button><button class="go next" data-go="2.5">Next</button></div>
+  </div>
+
+  <div class="page" data-page="2.5" hidden>
+    <h1>Which assistants do you want?</h1>
+    <p class="lede">Claude is the one this setup is built around. The others run in a terminal beside it, in the same folder, reading the same notes.</p>
+    <section>
+      <label class="check"><input type="checkbox" checked disabled>
+        <span><b>Claude</b>Always included. The app, Chrome, email, calendar and your phone all work through it.</span></label>
+      <div id="tool-list"></div>
+      <label class="check" id="extras-bypass-row" hidden><input type="checkbox" id="extras-bypass" checked>
+        <span><b>The others never stop to ask</b>The same as Bypass for Claude on the next page. Untick it to have them ask before they change files or run commands.</span></label>
+    </section>
+    <div class="nav"><button class="go quiet back" data-go="2">Back</button><button class="go next" data-go="3">Next</button></div>
   </div>
 
   <div class="page" data-page="3" hidden>
@@ -380,10 +393,6 @@
         <span><b>Remote control</b>Pick up any chat from the Claude app on your phone.</span></label>
       <label class="check"><input type="checkbox" id="tint" checked>
         <span><b>Color modes</b>Each chat gets a background color and a colored shape on its title, by topic.</span></label>
-      <label class="check"><input type="checkbox" id="agy" checked>
-        <span><b>Antigravity in the terminal</b>Google's assistant, installed beside Claude and pointed at the same folder and notes. You sign in with your work Google account.</span></label>
-      <label class="check" id="agy-bypass-row" style="margin-left:28px"><input type="checkbox" id="agy-bypass" checked>
-        <span><b>Antigravity never stops to ask</b>The same as Bypass above, for Antigravity. Untick it to have it ask before it changes files or runs commands.</span></label>
 
       <div id="token-row" hidden>
         <label for="token">Roofr access token</label>
@@ -392,7 +401,7 @@
       </div>
     </section>
     <p class="path">Folder: <span id="folder"></span></p>
-    <div class="nav"><button class="go quiet back" data-go="2">Back</button><button class="go" id="go">Set up Jarvis</button></div>
+    <div class="nav"><button class="go quiet back" data-go="2.5">Back</button><button class="go" id="go">Set up Jarvis</button></div>
     <p class="error" id="error" role="alert" hidden></p>
   </div>
 
@@ -578,7 +587,7 @@ const fill = (select, items) => {
 const slug = name => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'assistant'
 const chosenName = () => ($('name').value === '__custom' ? $('custom').value.trim() : $('name').value) || 'Marvin'
 
-// One page at a time. Pages 1-3 are the choices, 4-7 come after setup has run.
+// One page at a time. Pages 1, 2, 2.5 and 3 are the choices, 4-7 come after setup has run.
 let page = 1
 // The software this computer needs, installing while they go through the screens.
 const SAY = { waiting: 'Waiting its turn', working: 'Installing…', done: 'Installed', failed: 'Not installed' }
@@ -616,16 +625,17 @@ $('dock-head').onclick = () => {
 const done = { chrome: 0, drill: false, connectors: 0, connectorsKnown: false, github: false }
 const doneState = done
 
-$('agy').onchange = () => { $('agy-bypass-row').hidden = !$('agy').checked }
-
-async function openAgy() {
-  const opened = await post('/agy/open', { folder: result ? result.folder : '' })
-  if (opened.opened) done.agy = true
+// The assistants picked beside Claude.
+const pickedTools = () => [...document.querySelectorAll('#tool-list input:checked')].map(box => box.value)
+const opened = {}
+async function openTool(tool) {
+  const reply = await post('/tool/open', { tool: tool.id, folder: result ? result.folder : '' })
+  if (reply.opened) opened[tool.id] = true
   showFinale()
-  if (!opened.opened) {
-    const row = [...$('ready').children].find(li => li.textContent.includes('Antigravity'))
-    if (row) row.querySelector('small').textContent = opened.installed
-      ? 'It could not be opened from here. Open a terminal in your folder and type agy.'
+  if (!reply.opened) {
+    const row = $('ready').querySelector(`li[data-tool="${tool.id}"] small`)
+    if (row) row.textContent = reply.installed
+      ? `It could not be opened from here. In your folder, double-click the "Open" file for ${tool.label}.`
       : 'Still installing, or it could not be installed. Look at the installs panel, then try again.'
   }
 }
@@ -642,8 +652,8 @@ function showFinale() {
         : done.connectorsKnown ? `${done.connectors} of 3 connected.` : 'Could not be checked from here.', 8],
     [done.github, 'GitHub backup', done.github ? 'Connected.' : 'Not connected yet.', 9],
   ]
-  if (result && result.agy) rows.push([Boolean(done.agy), 'Antigravity',
-    done.agy ? 'Opened in a terminal. Sign in there with your work Google account.' : 'Installed. Open it once to sign in with your work Google account.', 'agy'])
+  for (const tool of (result && result.tools) || []) rows.push([Boolean(opened[tool.id]), tool.label,
+    opened[tool.id] ? `Opened in a terminal. Sign in there with ${tool.account}.` : `Set up. Open it once to sign in with ${tool.account}.`, tool])
   $('ready').replaceChildren(...rows.map(([on, title, detail, go]) => {
     const li = document.createElement('li')
     if (on) li.className = 'on'
@@ -652,9 +662,11 @@ function showFinale() {
     text.append(Object.assign(document.createElement('b'), { textContent: title }),
       Object.assign(document.createElement('small'), { textContent: detail }))
     li.append(mark, text)
+    const tool = typeof go === 'object' ? go : null
+    if (tool) li.dataset.tool = tool.id
     if (!on && go) {
-      const fix = Object.assign(document.createElement('button'), { type: 'button', className: 'copy', textContent: go === 'agy' ? 'Open it' : 'Finish it' })
-      fix.onclick = go === 'agy' ? openAgy : () => show(go)
+      const fix = Object.assign(document.createElement('button'), { type: 'button', className: 'copy', textContent: tool ? 'Open it' : 'Finish it' })
+      fix.onclick = tool ? () => openTool(tool) : () => show(go)
       li.append(fix)
     }
     return li
@@ -698,8 +710,9 @@ function show(n) {
   if (n === 9) post('/github/status').then(showGithub)
   for (const el of document.querySelectorAll('.page')) el.hidden = Number(el.dataset.page) !== n
   $('progress').hidden = $('bar').hidden = n === 0
-  $('progress').textContent = n <= 3 ? `Step ${n} of 3` : `Almost there: ${n - 3} of 7`
-  const total = n <= 3 ? 3 : 7, at = n <= 3 ? n : n - 3
+  const choices = [1, 2, 2.5, 3]
+  $('progress').textContent = n <= 3 ? `Step ${choices.indexOf(n) + 1} of 4` : `Almost there: ${n - 3} of 7`
+  const total = n <= 3 ? 4 : 7, at = n <= 3 ? choices.indexOf(n) + 1 : n - 3
   $('bar').replaceChildren(...Array.from({ length: total }, (_, i) =>
     Object.assign(document.createElement('i'), { className: i < at ? 'on' : '' })))
   window.scrollTo(0, 0)
@@ -755,6 +768,17 @@ async function load() {
   $('user').value = options.user
   for (const el of document.querySelectorAll('.the-contact')) el.textContent = options.contact || 'your manager'
   $('token-row').hidden = options.hasToken
+  for (const tool of options.tools || []) {
+    const row = Object.assign(document.createElement('label'), { className: 'check' })
+    const box = Object.assign(document.createElement('input'), { type: 'checkbox', value: tool.id, checked: tool.on })
+    const words = document.createElement('span')
+    words.append(Object.assign(document.createElement('b'), { textContent: tool.label }),
+      `${tool.maker}. Needs ${tool.account}.`)
+    row.append(box, words)
+    box.onchange = () => { $('extras-bypass-row').hidden = !pickedTools().length }
+    $('tool-list').append(row)
+  }
+  $('extras-bypass-row').hidden = !pickedTools().length
   for (const [name, hex] of Object.entries(options.colors)) {
     const b = document.createElement('button')
     b.type = 'button'; b.dataset.color = name; b.style.background = hex; b.title = name
@@ -792,7 +816,7 @@ $('go').onclick = async () => {
       body: JSON.stringify({
         assistant: chosenName(), color, style: $('style').value, user: $('user').value, role: $('role').value, roofr: $('roofr').value,
         mode: $('mode').value, remote: $('remote').checked, colors: $('tint').checked, token: $('token').value,
-        agy: $('agy').checked, agyBypass: $('agy-bypass').checked,
+        tools: pickedTools(), extrasBypass: $('extras-bypass').checked,
       }),
     })
     result = await response.json()

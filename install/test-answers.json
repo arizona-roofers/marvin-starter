@@ -8,5 +8,9 @@
   "remote": true,
   "colors": true,
   "roofr": "Pat Example",
-  "agy": true
+  "tools": [
+    "agy",
+    "codex",
+    "grok"
+  ]
 }

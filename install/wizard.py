@@ -68,19 +68,23 @@ if not INSTALLER_TOKEN:
     INSTALLER_TOKEN = _token_from_install_file()
 
 
-def _contact():
-    """Who to ask for help. The install file names them; nobody is named in this repository."""
-    named = os.environ.get("ASSISTANT_HELP_CONTACT", "")
+def _install_setting(name, allowed):
+    """A setting the install file carries: from the environment, or read out of the file on a later run."""
+    named = os.environ.get(name, "")
     if not named:
         source = install_file()
         try:
             head = source.read_text(encoding="utf-8", errors="ignore")[:4000] if source else ""
         except OSError:
             head = ""
-        match = re.search(r"ASSISTANT_HELP_CONTACT=['\"]?([A-Za-z0-9 .@-]{1,60})", head)
+        match = re.search(name + r"=['\"]?([" + allowed + r"]{1,60})", head)
         named = match.group(1) if match else ""
-    named = re.sub(r"[^A-Za-z0-9 .@-]", "", named).strip()[:60]
-    return named or "your manager"
+    return re.sub(r"[^" + allowed + r"]", "", named).strip()[:60]
+
+
+def _contact():
+    """Who to ask for help. The install file names them; nobody is named in this repository."""
+    return _install_setting("ASSISTANT_HELP_CONTACT", "A-Za-z0-9 .@-") or "your manager"
 
 
 CONTACT = _contact()
@@ -429,11 +433,12 @@ Personal green, and {name}'s own color for work on the assistant itself.
 `/tint <topic>` changes it, `/tint off` clears it. To add or change topics,
 edit `.mods/session-tint/hooks/topics.js`.
 
-### Antigravity
+### Other assistants
 
-If you chose it in setup, Google's assistant is in the terminal too: open a terminal
-in this folder and type `agy`. It reads the same notes through `GEMINI.md`. Sign in
-with your work Google account the first time.
+If you chose them in setup, Gemini (Antigravity), Codex or Grok run in a terminal on
+this same folder: double-click the matching `Open ...` file in this folder. Each reads
+the same notes through `AGENTS.md` (Gemini through `GEMINI.md`) and asks you to sign in
+with its own account the first time.
 
 ### Usage bar
 
@@ -740,10 +745,11 @@ def configure(a):
         log.append("Color modes installed.")
 
     write_settings(a, mod_dir, log)
-    if a.get("agy"):
-        write_agy_settings(a, workspace, name, log)
-        if not os.environ.get("ASSISTANT_SKIP_INSTALLS"):
-            install_agy()
+    extras = chosen_extras(a)
+    write_extras(a, workspace, name, extras, log)
+    if not os.environ.get("ASSISTANT_SKIP_INSTALLS"):
+        for tool in extras:
+            install_extra(tool)
     try:
         write_shortcut(name, workspace, log)
     except OSError:
@@ -759,7 +765,8 @@ def configure(a):
     if shutil.which("git") and not (workspace / ".git").exists():
         subprocess.run(["git", "init", "-q"], cwd=str(workspace), check=False)
 
-    return {"ok": True, "log": log, "folder": str(workspace), "assistant": name, "agy": bool(a.get("agy")),
+    return {"ok": True, "log": log, "folder": str(workspace), "assistant": name,
+            "tools": [{"id": t, "label": EXTRAS[t]["label"], "account": EXTRAS[t]["account"]} for t in extras],
             "user": a["user"] if a["user"] != "the owner of this computer" else "",
             "try": KITS.get(a["role"], DEFAULT_KIT)["try"][:3]}
 
@@ -1477,9 +1484,9 @@ def installs_status():
             "busy": any(r["state"] in ("waiting", "working") for r in rows)}
 
 
-# --- Antigravity in the terminal: Google's assistant, as a second one beside Claude ---
+# --- Other assistants: terminal tools beside Claude, on the same folder and notes ---
 
-AGY_POINTER = """# {name}
+POINTER = """# {name}
 
 Read `CLAUDE.md` in this folder first and follow it: it says who you are, who you work
 for and how. The notes it points to (`state/`, `company/`) are yours to read and keep up.
@@ -1487,34 +1494,101 @@ for and how. The notes it points to (`state/`, `company/`) are yours to read and
 The files in `.claude/commands/` are plain instructions. When the person types `/start`
 or `/save`, read `.claude/commands/start.md` or `.claude/commands/save.md` and do what it says.
 """
-AGY_JOB = {"thread": None}
+
+# "never" is the tool's own flag for running without stopping to ask. Antigravity has
+# no flag: its choice is written to its settings file instead.
+EXTRAS = {
+    "agy": {
+        "label": "Gemini (Antigravity)", "short": "Antigravity", "command": "agy", "maker": "Google's assistant",
+        "account": "your work Google account", "never": "",
+        "windows": "irm https://antigravity.google/cli/install.ps1 | iex",
+        "unix": "curl -fsSL https://antigravity.google/cli/install.sh | bash",
+    },
+    "codex": {
+        "label": "Codex", "short": "Codex", "command": "codex", "maker": "OpenAI's assistant",
+        "account": "a ChatGPT plan of your own", "never": "--dangerously-bypass-approvals-and-sandbox",
+        "windows": "$env:CODEX_NON_INTERACTIVE=1; irm https://chatgpt.com/codex/install.ps1 | iex",
+        "unix": "curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh",
+    },
+    "grok": {
+        "label": "Grok", "short": "Grok", "command": "grok", "maker": "xAI's assistant",
+        "account": "a Grok plan of your own", "never": "--always-approve",
+        "windows": "irm https://x.ai/cli/install.ps1 | iex",
+        "unix": "curl -fsSL https://x.ai/cli/install.sh | bash",
+    },
+}
+EXTRA_JOBS = {}
+ONE_AT_A_TIME = threading.Lock()  # each installer adds itself to the PATH; two at once can undo each other
 
 
-def agy_path():
-    found = shutil.which("agy")
+def _default_tools():
+    """The assistants that start ticked beside Claude. The install file names them; here, none."""
+    named = _install_setting("ASSISTANT_DEFAULT_TOOLS", "a-z,")
+    other_names = {"gemini": "agy", "antigravity": "agy"}
+    wanted = {other_names.get(word, word) for word in named.split(",")}
+    return [tool for tool in EXTRAS if tool in wanted]
+
+
+DEFAULT_TOOLS = _default_tools()
+
+
+def tool_path(tool):
+    """Where the tool is, whether or not this window's PATH has caught up with its installer."""
+    found = shutil.which(EXTRAS[tool]["command"])
     if found:
         return found
-    spot = (Path(os.environ.get("LOCALAPPDATA", "")) / "agy" / "bin" / "agy.exe") if IS_WINDOWS \
-        else (Path.home() / ".local" / "bin" / "agy")
+    home, local = Path.home(), Path(os.environ.get("LOCALAPPDATA", ""))
+    if IS_WINDOWS:
+        spot = {"agy": local / "agy" / "bin" / "agy.exe",
+                "codex": local / "Programs" / "OpenAI" / "Codex" / "bin" / "codex.exe",
+                "grok": home / ".grok" / "bin" / "grok.exe"}[tool]
+    else:
+        spot = {"agy": home / ".local" / "bin" / "agy", "codex": home / ".local" / "bin" / "codex",
+                "grok": home / ".grok" / "bin" / "grok"}[tool]
     return str(spot) if spot.is_file() else None
 
 
-def _get_agy():
-    """Google's own installer for the Antigravity terminal tool."""
+def _get_extra(tool):
+    """The maker's own installer for the tool."""
     if IS_WINDOWS:
-        worked, note = _run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-                             "irm https://antigravity.google/cli/install.ps1 | iex"])
+        worked, note = _run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", EXTRAS[tool]["windows"]])
     else:
-        worked, note = _run(["bash", "-c", "curl -fsSL https://antigravity.google/cli/install.sh | bash"])
+        worked, note = _run(["bash", "-c", EXTRAS[tool]["unix"]])
     refresh_path()
     return worked, note
 
 
-def write_agy_settings(a, workspace, name, log):
+def chosen_extras(a):
+    """The assistants picked beside Claude, in a fixed order."""
+    picked = {t for t in a["tools"] if isinstance(t, str)} if isinstance(a.get("tools"), list) else set()
+    if a.get("agy"):  # answers written before there was a picker
+        picked.add("agy")
+    return [tool for tool in EXTRAS if tool in picked]
+
+
+def launcher(tool, workspace):
+    return workspace / f"Open {EXTRAS[tool]['short']}{'.cmd' if IS_WINDOWS else '.command'}"
+
+
+def write_launcher(tool, workspace, never_asks):
+    """A file in the folder that opens the tool there. Rewritten each run, so it follows the latest choice."""
+    spec = EXTRAS[tool]
+    run = spec["command"] + (" " + spec["never"] if never_asks and spec["never"] else "")
+    target = launcher(tool, workspace)
+    if IS_WINDOWS:
+        lines = ["@echo off", f"title {spec['short']}", 'cd /d "%~dp0"',
+                 'set "PATH=%LOCALAPPDATA%\\agy\\bin;%LOCALAPPDATA%\\Programs\\OpenAI\\Codex\\bin;'
+                 '%USERPROFILE%\\.grok\\bin;%USERPROFILE%\\.local\\bin;%PATH%"',
+                 f"call {run}", "if errorlevel 1 pause", ""]
+        target.write_bytes("\r\n".join(lines).encode("ascii"))
+    else:
+        target.write_text('#!/bin/bash\ncd "$(dirname "$0")" || exit 1\n'
+                          'export PATH="$HOME/.local/bin:$HOME/.grok/bin:$PATH"\n' + run + "\n", encoding="utf-8")
+        target.chmod(0o755)
+
+
+def write_agy_settings(workspace, never_asks, log):
     """Antigravity's own settings file: trust the assistant's folder, and never ask if that was chosen."""
-    for pointer in ("GEMINI.md", "AGENTS.md"):
-        if not (workspace / pointer).exists():
-            (workspace / pointer).write_text(AGY_POINTER.format(name=name), encoding="utf-8")
     path = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
     settings = {}
     if path.exists():
@@ -1532,52 +1606,69 @@ def write_agy_settings(a, workspace, name, log):
     trusted = settings.setdefault("trustedWorkspaces", [])
     if str(workspace) not in trusted:
         trusted.append(str(workspace))
-    never_asks = bool(a.get("agyBypass", True))
     if never_asks:
         settings["toolPermission"] = "always-proceed"
     path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
-    log.append("Antigravity set up for this folder" + (": it never stops to ask." if never_asks else "."))
 
 
-def install_agy():
-    """Fetch Antigravity in the background; its row shows in the page with the other installs."""
+def write_extras(a, workspace, name, extras, log):
+    """Point each chosen assistant at this folder's notes and leave a file that opens it here."""
+    if not extras:
+        return
+    never_asks = bool(a.get("extrasBypass", a.get("agyBypass", True)))
+    for pointer in ["AGENTS.md"] + (["GEMINI.md"] if "agy" in extras else []):
+        if not (workspace / pointer).exists():
+            (workspace / pointer).write_text(POINTER.format(name=name), encoding="utf-8")
+    for tool in extras:
+        write_launcher(tool, workspace, never_asks)
+    if "agy" in extras:
+        write_agy_settings(workspace, never_asks, log)
+    names = [EXTRAS[tool]["short"] for tool in extras]
+    log.append(" and ".join([", ".join(names[:-1]), names[-1]] if len(names) > 1 else names)
+               + f" set up for this folder: open {'it' if len(names) == 1 else 'each'} with its \"Open ...\" file there"
+               + (". Never stops to ask." if never_asks else "."))
+
+
+def install_extra(tool):
+    """Fetch one of the other assistants in the background; its row shows in the page with the other installs."""
+    spec = EXTRAS[tool]
     with INSTALL_LOCK:
-        if any(r["id"] == "agy" for r in INSTALLS):
+        if any(r["id"] == tool for r in INSTALLS):
             return
-        INSTALLS.append({"id": "agy", "label": "Antigravity", "why": "Google's assistant, in the terminal",
+        INSTALLS.append({"id": tool, "label": spec["label"], "why": f"{spec['maker']}, in the terminal",
                          "state": "waiting", "note": ""})
 
     def work():
         try:
             refresh_path()
-            if agy_path():
-                _mark("agy", "done", "already here")
+            if tool_path(tool):
+                _mark(tool, "done", "already here")
                 return
-            _mark("agy", "working")
-            _, note = _get_agy()
-            _mark("agy", "done" if agy_path() else "failed", "" if agy_path() else (note or "could not be installed"))
+            with ONE_AT_A_TIME:
+                _mark(tool, "working")
+                _, note = _get_extra(tool)
+            _mark(tool, "done" if tool_path(tool) else "failed", "" if tool_path(tool) else (note or "could not be installed"))
         except Exception as error:
-            _mark("agy", "failed", f"{type(error).__name__}: {error}"[:160])
+            _mark(tool, "failed", f"{type(error).__name__}: {error}"[:160])
 
-    AGY_JOB["thread"] = threading.Thread(target=work, daemon=True)
-    AGY_JOB["thread"].start()
+    EXTRA_JOBS[tool] = threading.Thread(target=work, daemon=True)
+    EXTRA_JOBS[tool].start()
 
 
-def open_agy(folder=""):
-    """A terminal window on the assistant's folder, running Antigravity. Its first run asks for a Google sign-in."""
+def open_extra(tool, folder=""):
+    """A terminal window on the assistant's folder, running the tool. Its first run asks for a sign-in."""
     workspace = Path(folder) if folder else None
-    tool = agy_path()
-    if not (tool and workspace and workspace.parent == Path.home() and (workspace / ".assistant-name").exists()):
+    if tool not in EXTRAS or not (workspace and workspace.parent == Path.home() and (workspace / ".assistant-name").exists()):
+        return False
+    file = launcher(tool, workspace)
+    if not (tool_path(tool) and file.is_file()):
         return False
     try:
         if IS_WINDOWS:
-            subprocess.Popen(["cmd", "/c", "start", "", "cmd", "/k", tool], cwd=str(workspace))
+            subprocess.Popen(["cmd", "/c", "start", "", str(file)], cwd=str(workspace))
             return True
         if IS_MAC:
-            quoted = str(workspace).replace("\\", "\\\\").replace('"', '\\"')
-            path = tool.replace("\\", "\\\\").replace('"', '\\"')
-            script = f'tell application "Terminal" to do script "cd \\"{quoted}\\" && \\"{path}\\""'
-            return subprocess.run(["osascript", "-e", script], capture_output=True).returncode == 0
+            return subprocess.run(["open", str(file)], capture_output=True).returncode == 0
     except OSError:
         pass
     return False
@@ -1626,6 +1717,8 @@ class Handler(BaseHTTPRequestHandler):
                 "hasToken": bool(INSTALLER_TOKEN),
                 "user": os.environ.get("ASSISTANT_USER_NAME", ""),
                 "contact": CONTACT,
+                "tools": [{"id": t, "label": s["label"], "maker": s["maker"], "account": s["account"],
+                           "on": t in DEFAULT_TOOLS} for t, s in EXTRAS.items()],
             })
         else:
             self.send({"ok": False}, code=404)
@@ -1649,8 +1742,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.send({"ok": False, "error": f"{type(error).__name__}: {error}"})
         elif self.path == "/open":
             self.send({"ok": True, "claude": open_claude(str(body.get("folder") or ""))})
-        elif self.path == "/agy/open":
-            self.send({"ok": True, "opened": open_agy(str(body.get("folder") or "")), "installed": agy_path() is not None})
+        elif self.path == "/tool/open":
+            tool = body.get("tool") if body.get("tool") in EXTRAS else ""
+            self.send({"ok": bool(tool), "opened": bool(tool) and open_extra(tool, str(body.get("folder") or "")),
+                       "installed": bool(tool) and tool_path(tool) is not None})
         elif self.path == "/connectors/status":
             self.send(connectors_status(bool(body.get("fresh"))))
         elif self.path == "/installs/status":
@@ -1695,9 +1790,9 @@ def main():
         for row in INSTALLS:
             print(f"  {row['label']}: {row['state']}" + (f" ({row['note']})" if row["note"] else ""))
         result = configure(json.loads(Path(args.answers).read_text(encoding="utf-8")))
-        if AGY_JOB["thread"]:
-            AGY_JOB["thread"].join()
-            print("  Antigravity: " + _row("agy")["state"] + (f" ({_row('agy')['note']})" if _row("agy")["note"] else ""))
+        for tool, job in EXTRA_JOBS.items():
+            job.join()
+            print(f"  {EXTRAS[tool]['label']}: " + _row(tool)["state"] + (f" ({_row(tool)['note']})" if _row(tool)["note"] else ""))
         print("\n".join(result["log"]))
         return
 
