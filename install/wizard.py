@@ -1527,7 +1527,7 @@ ONE_AT_A_TIME = threading.Lock()  # each installer adds itself to the PATH; two 
 
 def _default_tools():
     """The assistants that start ticked beside Claude. The install file names them; here, none."""
-    named = _install_setting("ASSISTANT_DEFAULT_TOOLS", "a-z,")
+    named = _install_setting("ASSISTANT_DEFAULT_TOOLS", "A-Za-z,").lower()
     other_names = {"gemini": "agy", "antigravity": "agy"}
     wanted = {other_names.get(word, word) for word in named.split(",")}
     return [tool for tool in EXTRAS if tool in wanted]
@@ -1612,11 +1612,16 @@ def write_agy_settings(workspace, never_asks, log):
         trusted.append(str(workspace))
     if never_asks:
         settings["toolPermission"] = "always-proceed"
+    elif settings.get("toolPermission") == "always-proceed":  # the box was unticked on a later run
+        del settings["toolPermission"]
     path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
 
 
 def write_extras(a, workspace, name, extras, log):
     """Point each chosen assistant at this folder's notes and leave a file that opens it here."""
+    for tool in EXTRAS:  # one that was unticked on a later run loses its file
+        if tool not in extras and launcher(tool, workspace).is_file():
+            launcher(tool, workspace).unlink()
     if not extras:
         return
     never_asks = bool(a.get("extrasBypass", a.get("agyBypass", True)))
@@ -1665,8 +1670,9 @@ def install_extra(tool):
 
 def open_extra(tool, folder=""):
     """A terminal window on the assistant's folder, running the tool. Its first run asks for a sign-in."""
-    workspace = Path(folder) if folder else None
-    if tool not in EXTRAS or not (workspace and workspace.parent == Path.home() and (workspace / ".assistant-name").exists()):
+    workspace = Path(folder).resolve() if folder else None
+    if tool not in EXTRAS or not (workspace and workspace.parent == Path.home().resolve()
+                                  and (workspace / ".assistant-name").exists()):
         return False
     file = launcher(tool, workspace)
     if not (tool_path(tool) and file.is_file()):
