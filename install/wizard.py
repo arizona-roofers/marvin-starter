@@ -938,11 +938,22 @@ def claude_app_installed():
     return False
 
 
+BROWSER_AGENT = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                 "(KHTML, like Gecko) Chrome/130.0 Safari/537.36")
+
+
 def _download(url, dest):
+    """Fetch a large file. The download site turns away clients that do not look like a browser."""
+    curl = shutil.which("curl")
+    if curl:  # the system's own downloader: uses the system's certificates, follows redirects
+        done = subprocess.run([curl, "-fL", "--retry", "2", "-sS", "-A", BROWSER_AGENT, "-o", str(dest), url],
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800)
+        if done.returncode == 0 and Path(dest).exists() and Path(dest).stat().st_size > 1_000_000:
+            return
+        problem = (done.stderr or "").strip().splitlines()[-1:] or ["download failed"]
+        raise OSError("curl: " + problem[0])
     import urllib.request
-    # The download site turns away clients that do not look like a browser.
-    request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                                                                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"})
+    request = urllib.request.Request(url, headers={"User-Agent": BROWSER_AGENT})
     with urllib.request.urlopen(request, timeout=120) as reply, open(dest, "wb") as out:
         shutil.copyfileobj(reply, out)
 

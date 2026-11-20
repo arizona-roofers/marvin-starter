@@ -441,8 +441,10 @@ function showApp(status) {
     open.disabled = false
     open.textContent = status.state === 'failed' ? 'Download Claude' : 'Install Claude'
     $('open-note').textContent = status.state === 'failed'
-      ? `Setup could not install it by itself. This opens the download page: install it, then find Claude in ${where}.`
+      ? `Setup could not install it by itself${status.error ? ` (${status.error})` : ''}. This opens the download page: install it there and this button will change to "Open Claude".`
       : 'The Claude app is not on this computer yet. One click installs it.'
+    // Notice when the person has installed it by hand.
+    if (status.state === 'failed') setTimeout(async () => { if (appState === 'failed') showApp(await post('/app/status')) }, 5000)
   }
 }
 
