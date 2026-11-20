@@ -906,8 +906,10 @@ def github_backup(folder):
         return {"ok": False, "error": "That is not an assistant folder."}
     github_refresh()
     git = shutil.which("git")
-    if GITHUB["state"] != "connected" or git is None:
+    if GITHUB["state"] != "connected":
         return {"ok": False, "error": "Connect GitHub first."}
+    if git is None or not _has_git():
+        return {"ok": False, "error": "Git is still installing. Try again when it shows as done."}
     ignore = (workspace / ".gitignore").read_text(encoding="utf-8") if (workspace / ".gitignore").exists() else ""
     if ".env" not in ignore.split():
         (workspace / ".gitignore").write_text(ignore.rstrip("\n") + "\n.env\n", encoding="utf-8")
@@ -1184,6 +1186,210 @@ def connectors_status(fresh=False):
             "checking": CONNECTORS["checking"]}
 
 
+# --- Software this computer needs, installed while the person fills in the page -------
+
+INSTALLS = []          # one row per piece of software: id, label, state, note
+INSTALL_LOCK = threading.Lock()
+
+
+def _row(step_id):
+    return next(r for r in INSTALLS if r["id"] == step_id)
+
+
+def _mark(step_id, state, note=""):
+    with INSTALL_LOCK:
+        _row(step_id).update(state=state, note=note)
+
+
+def refresh_path():
+    """Pick up tools installed a moment ago (Windows keeps PATH in the registry)."""
+    extra = [str(Path.home() / ".local" / "bin")]
+    if IS_WINDOWS:
+        import winreg
+        for root, key in ((winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+                          (winreg.HKEY_CURRENT_USER, "Environment")):
+            try:
+                with winreg.OpenKey(root, key) as handle:
+                    extra += os.path.expandvars(winreg.QueryValueEx(handle, "Path")[0]).split(";")
+            except OSError:
+                pass
+    else:
+        extra += ["/opt/homebrew/bin", "/usr/local/bin"]
+    have = os.environ.get("PATH", "").split(os.pathsep)
+    os.environ["PATH"] = os.pathsep.join(have + [p for p in extra if p and p not in have])
+
+
+def _run(command, timeout=1800):
+    try:
+        done = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              timeout=timeout, stdin=subprocess.DEVNULL)
+        return done.returncode == 0, ((done.stderr or done.stdout or "").strip().splitlines() or [""])[-1][:160]
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return False, str(error)[:160]
+
+
+def _winget(package):
+    exe = shutil.which("winget")
+    if exe is None:
+        return False, "this PC has no winget (App Installer)"
+    common = ["-e", "--silent", "--accept-source-agreements", "--accept-package-agreements"]
+    worked, note = _run([exe, "install", "--id", package, "--scope", "user"] + common)
+    if not worked:  # some packages have no per-user installer
+        worked, note = _run([exe, "install", "--id", package] + common)
+    refresh_path()
+    return worked, note
+
+
+def _has_git():
+    if IS_MAC:  # /usr/bin/git is only a stub until Apple's developer tools are in
+        return subprocess.run(["xcode-select", "-p"], capture_output=True).returncode == 0
+    return shutil.which("git") is not None or (
+        IS_WINDOWS and (Path(os.environ.get("ProgramFiles", "")) / "Git" / "cmd" / "git.exe").exists())
+
+
+def _get_git():
+    if IS_WINDOWS:
+        return _winget("Git.Git")
+    if IS_MAC:
+        import time
+        subprocess.run(["xcode-select", "--install"], capture_output=True)
+        _mark("git", "working", "A window asked to install Apple's developer tools. Click Install. "
+                                "This is the long one; carry on with the page meanwhile.")
+        for _ in range(360):  # up to an hour
+            if _has_git():
+                return True, ""
+            time.sleep(10)
+        return False, "still not installed after an hour"
+    return False, ""
+
+
+def _has_chrome():
+    if IS_MAC:
+        return Path("/Applications/Google Chrome.app").exists() or (Path.home() / "Applications" / "Google Chrome.app").exists()
+    if IS_WINDOWS:
+        return any((Path(os.environ.get(v, "")) / "Google" / "Chrome" / "Application" / "chrome.exe").exists()
+                   for v in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"))
+    return True
+
+
+def _get_chrome():
+    if IS_WINDOWS:
+        return _winget("Google.Chrome")
+    import tempfile
+    work = Path(tempfile.mkdtemp(prefix="chrome-"))
+    try:
+        dmg, mount = work / "chrome.dmg", work / "mount"
+        _download("https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg", dmg)
+        mount.mkdir()
+        subprocess.run(["hdiutil", "attach", str(dmg), "-nobrowse", "-quiet", "-mountpoint", str(mount)], check=True)
+        try:
+            target = Path("/Applications") if os.access("/Applications", os.W_OK) else Path.home() / "Applications"
+            target.mkdir(exist_ok=True)
+            subprocess.run(["ditto", str(mount / "Google Chrome.app"), str(target / "Google Chrome.app")], check=True)
+        finally:
+            subprocess.run(["hdiutil", "detach", str(mount), "-quiet"], check=False)
+        return True, ""
+    except Exception as error:
+        return False, str(error)[:160]
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _get_claude_code():
+    if IS_WINDOWS:
+        worked, note = _run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                             "irm https://claude.ai/install.ps1 | iex"])
+    else:
+        worked, note = _run(["bash", "-c", "curl -fsSL https://claude.ai/install.sh | bash"])
+    refresh_path()
+    return worked, note
+
+
+def _get_claude_app():
+    import time
+    if IS_WINDOWS and shutil.which("winget"):
+        _winget("Anthropic.Claude")
+        if claude_app_installed():
+            return True, ""
+    if IS_WINDOWS and os.environ.get("CI"):
+        return False, "no silent installer on this test machine"
+    ensure_claude_app()
+    while CLAUDE_APP["state"] == "installing":
+        time.sleep(2)
+    return claude_app_installed(), CLAUDE_APP.get("error", "")
+
+
+def _get_gh():
+    GH_TOOL["tried"] = False
+    ensure_gh()
+    return gh_path() is not None, ""
+
+
+def install_plan():
+    """What this kind of computer needs, in the order it is fetched."""
+    plan = [
+        ("claude-code", "Claude Code", lambda: claude_cli() is not None, _get_claude_code, "the engine your assistant runs on"),
+        ("claude-app", "The Claude app", claude_app_installed, _get_claude_app, "where you will talk to it"),
+        ("chrome", "Google Chrome", _has_chrome, _get_chrome, "for Roofr and the web"),
+        ("gh", "GitHub tool", lambda: gh_path() is not None, _get_gh, "for backing up your notes"),
+    ]
+    if IS_WINDOWS:
+        plan.insert(0, ("git", "Git", _has_git, _get_git, "Claude needs it to run commands"))
+        plan.append(("node", "Node.js", lambda: shutil.which("node") is not None,
+                     lambda: _winget("OpenJS.NodeJS.LTS"), "for add-on skills"))
+    elif IS_MAC:
+        plan.append(("git", "Apple developer tools (Git)", _has_git, _get_git, "for backups; the slow one"))
+    return plan
+
+
+def run_installs(blocking=False):
+    """Fetch whatever is missing. Each row moves waiting -> working -> done or failed."""
+    refresh_path()
+    plan = install_plan()
+    with INSTALL_LOCK:
+        if INSTALLS:
+            return
+        INSTALLS.extend({"id": i, "label": label, "why": why, "state": "waiting", "note": ""} for i, label, _, _, why in plan)
+
+    def one(step):
+        step_id, _, have, get, _ = step
+        try:
+            if have():
+                _mark(step_id, "done", "already here")
+                return
+            _mark(step_id, "working")
+            worked, note = get()
+            refresh_path()
+            _mark(step_id, "done" if have() else "failed", "" if have() else (note or "could not be installed"))
+        except Exception as error:
+            _mark(step_id, "failed", f"{type(error).__name__}: {error}"[:160])
+
+    def queue(steps):
+        for step in steps:
+            one(step)
+
+    # Apple's developer tools take many minutes and wait on a click, so they run on their own.
+    slow = [step for step in plan if IS_MAC and step[0] == "git"]
+    fast = [step for step in plan if step not in slow]
+    if blocking:
+        queue(fast + ([] if os.environ.get("CI") else slow))
+        for step in slow:
+            if os.environ.get("CI"):
+                _mark(step[0], "done" if step[2]() else "failed", "")
+        return
+    threading.Thread(target=queue, args=(fast,), daemon=True).start()
+    if slow:
+        threading.Thread(target=queue, args=(slow,), daemon=True).start()
+
+
+def installs_status():
+    with INSTALL_LOCK:
+        rows = [dict(r) for r in INSTALLS]
+    settled = sum(1 for r in rows if r["state"] in ("done", "failed"))
+    return {"ok": True, "rows": rows, "settled": settled, "total": len(rows),
+            "busy": any(r["state"] in ("waiting", "working") for r in rows)}
+
+
 PAGE = (Path(__file__).resolve().parent / "wizard.html")
 
 
@@ -1251,6 +1457,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send({"ok": True, "claude": open_claude()})
         elif self.path == "/connectors/status":
             self.send(connectors_status(bool(body.get("fresh"))))
+        elif self.path == "/installs/status":
+            self.send(installs_status())
         elif self.path == "/account/status":
             self.send(claude_account())
         elif self.path == "/account/login":
@@ -1287,12 +1495,15 @@ def main():
     args = parser.parse_args()
 
     if args.answers:
+        run_installs(blocking=True)
+        for row in INSTALLS:
+            print(f"  {row['label']}: {row['state']}" + (f" ({row['note']})" if row["note"] else ""))
         result = configure(json.loads(Path(args.answers).read_text(encoding="utf-8")))
         print("\n".join(result["log"]))
         return
 
-    if not os.environ.get("ASSISTANT_SKIP_APP"):
-        ensure_claude_app()  # under way while the person fills in the page
+    if not os.environ.get("ASSISTANT_SKIP_INSTALLS"):
+        run_installs()  # under way while the person fills in the page
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"\n  Setup is open in your browser: {url}\n  Leave this window open until setup says it is done.\n", flush=True)

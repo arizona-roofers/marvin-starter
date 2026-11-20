@@ -5,7 +5,7 @@ name: Installer
 
 on:
   push:
-    branches: [master]
+    branches: [master, next]
     paths: ['install/**', 'mods/**', '.claude/**', '.github/workflows/installer.yml']
   workflow_dispatch:
 
@@ -24,6 +24,7 @@ jobs:
       ROOFR_EXTERNAL_TOKEN: test_token_not_real_0000000000
       ASSISTANT_ANSWERS_FILE: ${{ github.workspace }}/install/test-answers.json
       ASSISTANT_PACK_DIR: ${{ github.workspace }}/install/test-pack
+      ASSISTANT_STARTER_REF: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,13 +47,16 @@ jobs:
         shell: powershell
         run: |
           Add-Content "$HOME\friday\state\goals.md" "my own note"
+          # the second run uses the small fetched Python, the path a computer with none takes
+          $env:ASSISTANT_FORCE_UV = "1"
           Get-Content install\install.ps1 -Raw | Invoke-Expression
 
       - name: Change a note, then run the installer again (Mac)
         if: runner.os == 'macOS'
         run: |
           echo "my own note" >> "$HOME/friday/state/goals.md"
-          bash install/install.sh < /dev/null
+          # the second run uses the small fetched Python, the path a Mac without developer tools takes
+          ASSISTANT_FORCE_UV=1 bash install/install.sh < /dev/null
 
       - name: Check the second run kept everything
         shell: bash

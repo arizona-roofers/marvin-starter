@@ -86,6 +86,7 @@ if claude:
                            capture_output=True, text=True, encoding="utf-8", errors="replace")
     check("Claude accepts the color mod", valid.returncode == 0)
 check("git on this machine", shutil.which("git") is not None)
+note("GitHub tool on this machine", shutil.which("gh") is not None or (home / ".local" / "bin" / ("gh.exe" if os.name == "nt" else "gh")).exists())
 note("node on this machine", shutil.which("node") is not None)
 if sys.platform == "darwin":
     note("Claude desktop app installed", Path("/Applications/Claude.app").exists())

@@ -1,142 +1,70 @@
-# One-step install for Windows: gets Git, Python, Claude Code and the Claude app,
-# downloads the starter, then opens the setup page in the browser.
+# One-step install for Windows. It only does enough to open the setup page: it downloads
+# the starter and finds (or fetches) a Python to run it. The page itself then installs
+# Git, Claude Code, the Claude app, Chrome and the rest, and shows each one's progress.
 #
 # Run it by double-clicking the install file Travis sent you, or paste this in PowerShell:
 #   irm https://raw.githubusercontent.com/arizona-roofers/marvin-starter/master/install/install.ps1 | iex
 #
-# Safe to run again: it skips what is already installed and keeps your notes.
+# Safe to run again: it fetches the latest starter and keeps your notes.
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
-$Repo = 'https://github.com/arizona-roofers/marvin-starter'
-$Branch = 'master'
+# ASSISTANT_STARTER_REF picks another branch or commit; the automated test uses it.
+$Ref = if ($env:ASSISTANT_STARTER_REF) { $env:ASSISTANT_STARTER_REF } else { 'master' }
+$Zip = "https://github.com/arizona-roofers/marvin-starter/archive/$Ref.zip"
 $Starter = Join-Path $HOME '.assistant-starter'
 
 function Write-Step($text) { Write-Host "`n==> $text" -ForegroundColor Cyan }
 function Write-Ok($text) { Write-Host "    $text" -ForegroundColor Green }
-function Write-Note($text) { Write-Host "    $text" -ForegroundColor Yellow }
-
-# Tools installed a moment ago are on the registry PATH but not in this window yet.
-function Update-PathFromRegistry {
-  $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-  $user = [Environment]::GetEnvironmentVariable('Path', 'User')
-  $env:Path = "$machine;$user;$HOME\.local\bin"
-}
-
-function Test-Tool($name) { [bool](Get-Command $name -ErrorAction SilentlyContinue) }
 
 # The "python" Windows ships is a stub that opens the Store. Only a real one counts.
 function Get-Python {
+  if ($env:ASSISTANT_FORCE_UV) { return $null }
   foreach ($candidate in @('python', 'py', 'python3')) {
     $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
     if (-not $cmd -or $cmd.Source -like '*\WindowsApps\*') { continue }
     try {
       $version = & $cmd.Source --version 2>$null
-      if ($version -match 'Python 3') { return $cmd.Source }
+      if ($version -match 'Python 3\.(9|\d\d)') { return $cmd.Source }
     } catch { }
   }
   return $null
 }
 
-function Install-WithWinget($id, $label) {
-  if (-not (Test-Tool 'winget')) {
-    Write-Note "$label is missing and this PC has no winget to install it. Install 'App Installer' from the Microsoft Store, then run this again."
-    return $false
-  }
-  Write-Host "    Installing $label (this can take a minute)..."
-  winget install --id $id -e --silent --scope user --accept-source-agreements --accept-package-agreements | Out-Null
-  if ($LASTEXITCODE -ne 0) {
-    # Some packages have no per-user installer; try once more the normal way.
-    winget install --id $id -e --silent --accept-source-agreements --accept-package-agreements | Out-Null
-  }
-  Update-PathFromRegistry
-  return $true
-}
+Write-Host "`n  Opening setup for your AI assistant. The page will appear in your browser in a moment." -ForegroundColor White
+Write-Host "  If Windows asks for permission to install something later, click Yes.`n"
 
-Write-Host "`n  Setting up your AI assistant. This takes about five minutes." -ForegroundColor White
-Write-Host "  If Windows asks for permission to install something, click Yes.`n"
-Update-PathFromRegistry
+Write-Step 'Getting the setup page'
+$download = Join-Path $env:TEMP 'assistant-starter.zip'
+$unpacked = Join-Path $env:TEMP 'assistant-starter-unpacked'
+try { Invoke-WebRequest $Zip -OutFile $download -UseBasicParsing }
+catch { throw 'The setup page could not be downloaded. Check your internet connection and run this again.' }
+if (Test-Path $unpacked) { Remove-Item $unpacked -Recurse -Force }
+Expand-Archive $download -DestinationPath $unpacked
+if (Test-Path $Starter) { Remove-Item $Starter -Recurse -Force }
+Move-Item (Get-ChildItem $unpacked -Directory | Select-Object -First 1).FullName $Starter
+Remove-Item $download, $unpacked -Recurse -Force -ErrorAction SilentlyContinue
+Write-Ok 'ready'
 
-Write-Step 'Git'
-if (Test-Tool 'git') { Write-Ok 'already installed' }
-else {
-  [void](Install-WithWinget 'Git.Git' 'Git')
-  if (Test-Tool 'git') { Write-Ok 'installed' }
-  else { Write-Note 'not installed. Claude needs Git to run commands on Windows: install it from https://git-scm.com/download/win after setup.' }
-}
-
-Write-Step 'Python'
+Write-Step 'Starting it'
+$wizard = Join-Path $Starter 'install\wizard.py'
 $python = Get-Python
-if ($python) { Write-Ok 'already installed' }
-else {
-  [void](Install-WithWinget 'Python.Python.3.13' 'Python')
-  $python = Get-Python
-  if (-not $python) {
-    $guess = Get-ChildItem "$env:LOCALAPPDATA\Programs\Python\Python3*\python.exe" -ErrorAction SilentlyContinue | Select-Object -Last 1
-    if ($guess) { $python = $guess.FullName }
+if (-not $python) {
+  $env:Path = "$HOME\.local\bin;$env:Path"
+  if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    # In its own process: its installer may stop or exit, and this setup must carry on.
+    try { powershell -NoProfile -ExecutionPolicy Bypass -Command "`$env:UV_NO_MODIFY_PATH='1'; irm https://astral.sh/uv/install.ps1 | iex" | Out-Null } catch { }
   }
-  if ($python) { Write-Ok 'installed' }
-  else { throw 'Python could not be installed. Install it from https://www.python.org/downloads/ and run this again.' }
+  if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    throw 'Setup could not get the small tool it needs to start. Check your internet connection and run this again.'
+  }
 }
+Write-Ok 'opening your browser'
 
-Write-Step 'Node.js'
-if (Test-Tool 'node') { Write-Ok 'already installed' }
-else { [void](Install-WithWinget 'OpenJS.NodeJS.LTS' 'Node.js'); if (Test-Tool 'node') { Write-Ok 'installed' } else { Write-Note 'not installed; only add-on skills need it, so carrying on' } }
-
-Write-Step 'GitHub tool'
-if (Test-Tool 'gh') { Write-Ok 'already installed' }
-else { [void](Install-WithWinget 'GitHub.cli' 'the GitHub tool'); if (Test-Tool 'gh') { Write-Ok 'installed' } else { Write-Note 'not installed; only the optional backup needs it' } }
-
-Write-Step 'Google Chrome'
-$hasChrome = (Test-Path "$env:ProgramFiles\Google\Chrome\Application\chrome.exe") -or (Test-Path "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe") -or (Test-Path "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe")
-if ($hasChrome) { Write-Ok 'already installed' }
-else { [void](Install-WithWinget 'Google.Chrome' 'Google Chrome'); Write-Ok 'done' }
-
-Write-Step 'Claude Code'
-if (Test-Tool 'claude') { Write-Ok 'already installed' }
-else {
-  # In its own process: if its installer stops or exits, this setup carries on.
-  try { powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://claude.ai/install.ps1 | iex" | Out-Host } catch { }
-  Update-PathFromRegistry
-  if (Test-Tool 'claude') { Write-Ok 'installed' } else { Write-Note 'installed, but this window cannot see it yet. That is fine.' }
-}
-
-Write-Step 'Claude desktop app'
-$hasApp = (Test-Path "$env:LOCALAPPDATA\AnthropicClaude\claude.exe") -or [bool](Get-StartApps | Where-Object { $_.Name -eq 'Claude' })
-if ($hasApp) { Write-Ok 'already installed' }
-else {
-  [void](Install-WithWinget 'Anthropic.Claude' 'the Claude app')
-  $hasApp = (Test-Path "$env:LOCALAPPDATA\AnthropicClaude\claude.exe") -or [bool](Get-StartApps | Where-Object { $_.Name -eq 'Claude' })
-  if ($hasApp) { Write-Ok 'installed' }
-  else { Write-Note 'could not install it automatically. Download it from https://claude.ai/download after setup.' }
-}
-
-Write-Step 'Downloading the starter'
-if (Test-Path (Join-Path $Starter '.git')) {
-  git -C $Starter pull --ff-only --quiet
-  if ($LASTEXITCODE -ne 0) { Write-Note 'could not update; using the copy already here' } else { Write-Ok 'updated' }
-}
-elseif (Test-Tool 'git') {
-  if (Test-Path $Starter) { Remove-Item $Starter -Recurse -Force }
-  git clone --quiet --depth 1 --branch $Branch "$Repo.git" $Starter
-  if ($LASTEXITCODE -ne 0) { throw 'The starter could not be downloaded. Check your internet connection and run this again.' }
-  Write-Ok 'downloaded'
-}
-else {
-  $zip = Join-Path $env:TEMP 'assistant-starter.zip'
-  $unpacked = Join-Path $env:TEMP 'assistant-starter-unpacked'
-  Invoke-WebRequest "$Repo/archive/refs/heads/$Branch.zip" -OutFile $zip -UseBasicParsing
-  if (Test-Path $unpacked) { Remove-Item $unpacked -Recurse -Force }
-  Expand-Archive $zip -DestinationPath $unpacked
-  if (Test-Path $Starter) { Remove-Item $Starter -Recurse -Force }
-  Move-Item (Get-ChildItem $unpacked -Directory | Select-Object -First 1).FullName $Starter
-  Remove-Item $zip, $unpacked -Recurse -Force -ErrorAction SilentlyContinue
-  Write-Ok 'downloaded'
-}
-
-Write-Step 'Opening setup in your browser'
 $env:ASSISTANT_USER_NAME = (Get-Culture).TextInfo.ToTitleCase(($env:USERNAME -split '[\s._]')[0].ToLower())
 # ASSISTANT_ANSWERS_FILE (a JSON file of answers) skips the page; the automated test uses it.
-if ($env:ASSISTANT_ANSWERS_FILE) { & $python (Join-Path $Starter 'install\wizard.py') --answers $env:ASSISTANT_ANSWERS_FILE }
-else { & $python (Join-Path $Starter 'install\wizard.py') }
+$more = @()
+if ($env:ASSISTANT_ANSWERS_FILE) { $more = @('--answers', $env:ASSISTANT_ANSWERS_FILE) }
+if ($python) { & $python $wizard @more }
+else { & uv run --quiet --no-project --python 3.12 $wizard @more }
 if ($LASTEXITCODE -ne 0) { throw 'Setup did not finish.' }

@@ -220,6 +220,27 @@
   .dots { display: none; }
   .intro .go { max-width: 320px; margin: 0 auto; display: block; }
   .static .slide { animation: none; opacity: 1; transform: none; }
+  .dock { position: fixed; right: 18px; bottom: 18px; z-index: 5; width: min(340px, calc(100vw - 36px));
+    background: var(--glass); border: 1px solid var(--edge); border-radius: 18px; overflow: hidden;
+    -webkit-backdrop-filter: blur(24px) saturate(1.3); backdrop-filter: blur(24px) saturate(1.3);
+    box-shadow: 0 24px 50px -20px rgba(0, 0, 0, .7); }
+  .dock-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 16px; font: inherit; font-weight: 700;
+    color: var(--ink); background: transparent; border: 0; cursor: pointer; text-align: left; }
+  .dock-head .count { margin-left: auto; color: var(--soft); font-weight: 600; font-size: 14px; }
+  .spin { width: 16px; height: 16px; border-radius: 50%; border: 2.500px solid var(--edge); border-top-color: var(--accent); animation: turn .9s linear infinite; flex: none; }
+  .spin.done { animation: none; border-color: var(--ok); background: var(--ok); }
+  @keyframes turn { to { transform: rotate(360deg); } }
+  .dock ul { list-style: none; margin: 0; padding: 0 16px 12px; display: grid; gap: 9px; }
+  .dock[data-open=false] ul { display: none; }
+  .dock li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; font-size: 15px; }
+  .dock li .state { width: 18px; height: 18px; margin-top: 2px; border-radius: 50%; border: 2px solid var(--edge); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; }
+  .dock li.working .state { border-top-color: var(--accent); animation: turn .9s linear infinite; }
+  .dock li.done .state { background: var(--ok); border-color: var(--ok); }
+  .dock li.failed .state { background: var(--bad); border-color: var(--bad); }
+  .dock li small { display: block; color: var(--soft); font-size: 13px; line-height: 1.35; }
+  .dock li.waiting { opacity: .6; }
+  @media (max-width: 1000px) { main { padding-bottom: 260px; } }
+  @media (prefers-reduced-motion: reduce) { .spin, .dock li.working .state { animation: none; } }
   .progress { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -534,6 +555,14 @@
     <p class="hint" id="finish-note" style="text-align:center;margin-top:12px"></p>
   </div>
 </main>
+<aside class="dock" id="dock" hidden>
+  <button type="button" class="dock-head" id="dock-head" aria-expanded="true" aria-controls="dock-list">
+    <span class="spin" id="dock-spin" aria-hidden="true"></span>
+    <span id="dock-title">Getting your computer ready</span>
+    <span class="count" id="dock-count"></span>
+  </button>
+  <ul id="dock-list"></ul>
+</aside>
 <script>
 const $ = id => document.getElementById(id)
 let options = {}, color = 'Blue'
@@ -546,6 +575,38 @@ const chosenName = () => ($('name').value === '__custom' ? $('custom').value.tri
 
 // One page at a time. Pages 1-3 are the choices, 4-7 come after setup has run.
 let page = 1
+// The software this computer needs, installing while they go through the screens.
+const SAY = { waiting: 'Waiting its turn', working: 'Installing…', done: 'Installed', failed: 'Not installed' }
+let dockTouched = false
+function showInstalls(st) {
+  if (!st.rows || !st.rows.length) return
+  $('dock').hidden = false
+  $('dock-count').textContent = `${st.settled} of ${st.total}`
+  $('dock-title').textContent = st.busy ? 'Getting your computer ready' : 'Your computer is ready'
+  $('dock-spin').classList.toggle('done', !st.busy)
+  $('dock-list').replaceChildren(...st.rows.map(row => {
+    const li = Object.assign(document.createElement('li'), { className: row.state })
+    const mark = row.state === 'done' ? '\u2713' : row.state === 'failed' ? '!' : ''
+    const state = Object.assign(document.createElement('span'), { className: 'state', textContent: mark })
+    const text = document.createElement('span')
+    const detail = row.state === 'done' ? (row.note === 'already here' ? 'Already on this computer' : SAY.done)
+      : row.note || (row.state === 'working' ? `Installing now (${row.why})` : SAY[row.state])
+    text.append(row.label, Object.assign(document.createElement('small'), { textContent: detail }))
+    li.append(state, text)
+    return li
+  }))
+  // Open by default where there is room beside the page; a pill elsewhere, unless something needs them.
+  const needsThem = st.rows.some(r => r.state === 'failed' || (r.state === 'working' && r.note))
+  if (!dockTouched) $('dock').dataset.open = String(needsThem || (st.busy && innerWidth >= 1040))
+  if (st.busy) setTimeout(async () => showInstalls(await post('/installs/status')), 2000)
+}
+$('dock-head').onclick = () => {
+  dockTouched = true
+  const open = $('dock').dataset.open !== 'false'
+  $('dock').dataset.open = String(!open)
+  $('dock-head').setAttribute('aria-expanded', String(!open))
+}
+
 // What each later step ended up as, for the last screen.
 const done = { chrome: 0, drill: false, connectors: 0, connectorsKnown: false, github: false }
 const doneState = done
@@ -955,7 +1016,7 @@ $('finish').onclick = async () => {
   for (const el of document.querySelectorAll('.page[data-page="10"] .back')) el.disabled = true
 }
 
-load().then(() => { show(0); startIntro() })
+load().then(() => { show(0); startIntro(); post('/installs/status').then(showInstalls) })
 </script>
 </body>
 </html>
