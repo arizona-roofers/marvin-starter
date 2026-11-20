@@ -67,7 +67,7 @@ if sys.argv[1:] == ["codex"]:
     whole, top = codex_settings()
     check("Codex never asks", 'approval_policy = "never"' in top and 'sandbox_mode = "danger-full-access"' in top)
     check("Codex's settings are written once", whole.count("approval_policy") == 1)
-    check("Codex trusts the folder", "sol']" in whole.lower() and 'trust_level = "trusted"' in whole)
+    check("Codex trusts the folder", ("sol']" in whole.lower() or 'sol"]' in whole.lower()) and 'trust_level = "trusted"' in whole)
     check("Claude's color modes left out", not (sol / ".mods").exists())
     check("Roofr token in .env", "ROOFR_EXTERNAL_TOKEN=" in read(sol / ".env"))
     spot = (Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "OpenAI" / "Codex" / "bin" / "codex.exe") if os.name == "nt" \
@@ -142,7 +142,7 @@ for label, command, flag, windows_spot, other_spot in (
     note(f"{label} installed", shutil.which(command.split()[0]) is not None or (windows_spot if os.name == "nt" else other_spot).exists())
 whole, top = codex_settings()
 check("Codex never asks, in the app too", 'approval_policy = "never"' in top and 'sandbox_mode = "danger-full-access"' in top)
-check("Codex trusts the assistant's folder", "friday']" in whole.lower() and 'trust_level = "trusted"' in whole)
+check("Codex trusts the assistant's folder", ("friday']" in whole.lower() or 'friday"]' in whole.lower()) and 'trust_level = "trusted"' in whole)
 check("Codex's settings are written once", whole.count("approval_policy") == 1)
 check("Codex has the skills too", (work / ".agents" / "skills" / "roofr-api" / "SKILL.md").exists())
 
