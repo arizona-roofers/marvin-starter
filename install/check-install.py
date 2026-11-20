@@ -84,6 +84,7 @@ check("Antigravity is pointed at CLAUDE.md", "CLAUDE.md" in read(work / "GEMINI.
 
 print("Other assistants")
 check("Codex and Grok are pointed at CLAUDE.md", "CLAUDE.md" in read(work / "AGENTS.md"))
+check("all three are pointed at the skills", all(".claude/skills/" in read(work / f) for f in ("AGENTS.md", "GEMINI.md")))
 local = Path(os.environ.get("LOCALAPPDATA", ""))
 ending = ".cmd" if os.name == "nt" else ".command"
 for label, command, flag, windows_spot, other_spot in (
