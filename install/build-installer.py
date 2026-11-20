@@ -72,12 +72,12 @@ def main():
     dist.mkdir(exist_ok=True)
 
     windows = dist / "Install Assistant.cmd"
-    windows.write_text(WINDOWS.format(token=token, raw=RAW).replace("\n", "\r\n"), encoding="ascii", newline="")
+    windows.write_bytes(WINDOWS.format(token=token, raw=RAW).replace("\n", "\r\n").encode("ascii"))
 
     # A zip keeps the Mac file's "can be run" flag, which a bare download loses.
     mac_zip = dist / "Install Assistant (Mac).zip"
     info = zipfile.ZipInfo("Install Assistant.command")
-    info.external_attr = 0o755 << 16
+    info.external_attr = 0o100755 << 16
     info.create_system = 3
     with zipfile.ZipFile(mac_zip, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(info, MAC.format(token=token, raw=RAW))

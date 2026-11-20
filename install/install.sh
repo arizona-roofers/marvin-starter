@@ -18,6 +18,9 @@ ok()   { printf '    \033[0;32m%s\033[0m\n' "$1"; }
 note() { printf '    \033[0;33m%s\033[0m\n' "$1"; }
 die()  { printf '\n\033[0;31m%s\033[0m\n' "$1"; exit 1; }
 
+# Everything runs inside main with stdin closed: this script may be arriving on
+# stdin (curl | bash), and a tool that reads stdin would swallow the rest of it.
+main() {
 printf '\n  Setting up your AI assistant. This takes about five minutes.\n'
 
 # Apple's /usr/bin/git and python3 are stubs until the developer tools are installed.
@@ -78,5 +81,7 @@ fi
 step "Opening setup in your browser"
 first="$(id -F 2>/dev/null | awk '{print $1}')"
 export ASSISTANT_USER_NAME="${first:-}"
-# This script may be arriving on stdin (curl | bash); give the wizard its own.
-python3 "$STARTER/install/wizard.py" </dev/null
+python3 "$STARTER/install/wizard.py"
+}
+
+main "$@" </dev/null

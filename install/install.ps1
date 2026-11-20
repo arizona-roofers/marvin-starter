@@ -91,7 +91,8 @@ else { [void](Install-WithWinget 'Google.Chrome' 'Google Chrome'); Write-Ok 'don
 Write-Step 'Claude Code'
 if (Test-Tool 'claude') { Write-Ok 'already installed' }
 else {
-  Invoke-RestMethod https://claude.ai/install.ps1 | Invoke-Expression
+  # In its own process: if its installer stops or exits, this setup carries on.
+  try { powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://claude.ai/install.ps1 | iex" | Out-Host } catch { }
   Update-PathFromRegistry
   if (Test-Tool 'claude') { Write-Ok 'installed' } else { Write-Note 'installed, but this window cannot see it yet. That is fine.' }
 }

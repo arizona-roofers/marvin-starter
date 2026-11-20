@@ -27,6 +27,9 @@ TEMPLATE = Path(__file__).resolve().parent.parent
 IS_WINDOWS = os.name == "nt"
 IS_MAC = sys.platform == "darwin"
 
+# Taken out of the environment so the apps this wizard opens do not inherit it.
+INSTALLER_TOKEN = os.environ.pop("ROOFR_EXTERNAL_TOKEN", "")
+
 NAMES = ["Jarvis", "HAL", "WALL-E", "Friday", "Marvin", "Alfred", "Samantha", "Cortana", "Data", "R2"]
 
 ROLES = [
@@ -90,6 +93,9 @@ AZR_TOPICS = [
 ]
 
 
+TAKEN_IDS = {t["id"] for t in AZR_TOPICS} | {"personal", "default", "auto", "off"}
+
+
 def slug(name):
     s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     return s or "assistant"
@@ -104,7 +110,7 @@ def topics_for(name, color):
                       "birthday", "doctor", "school"],
         },
         {
-            "id": slug(name), "label": name, "color": accent, "hue": hue, "dot": dot,
+            "id": slug(name) if slug(name) not in TAKEN_IDS else "assistant-" + slug(name), "label": name, "color": accent, "hue": hue, "dot": dot,
             "words": [name.lower(), "claude", "skill", "skills", "mod", "mods", "memory", "tint",
                       "setup", "settings", "shortcut"],
         },
@@ -299,11 +305,18 @@ def write_settings(a, mod_dir, log):
     settings = {}
     if path.exists():
         try:
-            settings = json.loads(path.read_text(encoding="utf-8"))
+            settings = json.loads(path.read_text(encoding="utf-8-sig"))
         except ValueError:
+            settings = None
+        if not isinstance(settings, dict):
             log.append("Claude's settings file could not be read, so it was left alone. Ask for help.")
             return
-        shutil.copy2(path, path.with_name("settings.json.before-setup"))
+        backup = path.with_name("settings.json.before-setup")
+        if not backup.exists():  # keep the true original across re-runs
+            shutil.copy2(path, backup)
+    if not isinstance(settings.get("permissions", {}), dict) or not isinstance(settings.get("env", {}), dict):
+        log.append("Claude's settings file has an unexpected shape, so it was left alone. Ask for help.")
+        return
 
     mode = a.get("mode", "bypassPermissions")
     settings.setdefault("permissions", {})["defaultMode"] = mode
@@ -327,16 +340,34 @@ def write_settings(a, mod_dir, log):
                f"remote control {'on' if settings['remoteControlAtStartup'] else 'off'}.")
 
 
+def desktop_folder():
+    """The person's Desktop. On a work PC, OneDrive often moves it."""
+    candidates = [Path.home() / "Desktop"]
+    if IS_WINDOWS:
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                 r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders")
+            candidates.insert(0, Path(os.path.expandvars(winreg.QueryValueEx(key, "Desktop")[0])))
+        except OSError:
+            pass
+        candidates += sorted(Path.home().glob("OneDrive*/Desktop"))
+    for folder in candidates:
+        if folder.is_dir():
+            return folder
+    return None
+
+
 def write_shortcut(name, workspace, log):
-    desktop = Path.home() / "Desktop"
-    if not desktop.is_dir():
+    desktop = desktop_folder()
+    if desktop is None:
+        log.append("No Desktop folder was found, so no shortcut was made. Open the folder from the Claude app instead.")
         return
     if IS_WINDOWS:
         shortcut = desktop / f"{name}.cmd"
-        shortcut.write_text(
-            f'@echo off\r\ntitle {name}\r\ncd /d "{workspace}"\r\n'
-            'set "PATH=%USERPROFILE%\\.local\\bin;%PATH%"\r\nclaude\r\n'
-            "if errorlevel 1 pause\r\n", encoding="utf-8")
+        lines = ["@echo off", "chcp 65001 >nul", f"title {name}", f'cd /d "{workspace}"',
+                 'set "PATH=%USERPROFILE%\\.local\\bin;%PATH%"', "claude", "if errorlevel 1 pause", ""]
+        shortcut.write_bytes("\r\n".join(lines).encode("utf-8"))
     else:
         shortcut = desktop / f"{name}.command"
         shortcut.write_text(
@@ -361,7 +392,13 @@ def configure(a):
         a["token"] = ""
         log.append("That Roofr token did not look right, so it was not saved.")
 
-    workspace = Path(a.get("folder") or Path.home() / slug(name)).expanduser()
+    # The folder is always ~/<name>: a path from outside would end up inside the shortcut script.
+    folder_name = slug(name)
+    if re.fullmatch(r"con|prn|aux|nul|com\d|lpt\d", folder_name):
+        folder_name += "-assistant"
+    workspace = Path.home() / folder_name
+    if workspace.exists() and any(workspace.iterdir()) and not (workspace / ".assistant-name").exists():
+        raise ValueError(f"You already have a folder called {workspace.name}. Pick a different name.")
     existed = (workspace / "CLAUDE.md").exists()
     workspace.mkdir(parents=True, exist_ok=True)
 
@@ -390,7 +427,8 @@ def configure(a):
             "## Open Threads\n\n- None yet\n", encoding="utf-8")
         log.append(f"Created {name}'s folder: {workspace}")
 
-    token = (a.get("token") or os.environ.get("ROOFR_EXTERNAL_TOKEN") or "").strip()
+    # A token from the install file wins on a re-run: that is how a new token reaches people.
+    token = (a.get("token") or INSTALLER_TOKEN or "").strip()
     if token:
         merge_env(workspace / ".env", {"ROOFR_EXTERNAL_TOKEN": token})
         log.append("Roofr data access added.")
@@ -415,12 +453,40 @@ def configure(a):
         log.append("Color modes installed.")
 
     write_settings(a, mod_dir, log)
-    write_shortcut(name, workspace, log)
+    try:
+        write_shortcut(name, workspace, log)
+    except OSError:
+        log.append("The desktop shortcut could not be made. Open the folder from the Claude app instead.")
+
+    missing = missing_apps()
+    if missing:
+        log.append("Still to install: " + "; ".join(missing) + ".")
 
     if shutil.which("git") and not (workspace / ".git").exists():
         subprocess.run(["git", "init", "-q"], cwd=str(workspace), check=False)
 
     return {"ok": True, "log": log, "folder": str(workspace), "assistant": name}
+
+
+def missing_apps():
+    """Apps the install step could not put on this machine, with where to get them."""
+    local = Path(os.environ.get("LOCALAPPDATA", ""))
+    if IS_WINDOWS:
+        has_claude = (local / "AnthropicClaude" / "claude.exe").exists() or bool(list(
+            (local / "Microsoft" / "WindowsApps").glob("Claude*")))
+        has_chrome = any((Path(os.environ.get(v, "")) / "Google" / "Chrome" / "Application" / "chrome.exe").exists()
+                         for v in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"))
+    elif IS_MAC:
+        has_claude = any((base / "Claude.app").exists() for base in (Path("/Applications"), Path.home() / "Applications"))
+        has_chrome = Path("/Applications/Google Chrome.app").exists()
+    else:
+        return []
+    missing = []
+    if not has_claude:
+        missing.append("the Claude app (claude.ai/download)")
+    if not has_chrome:
+        missing.append("Google Chrome (google.com/chrome)")
+    return missing
 
 
 def open_folder(folder):
@@ -470,8 +536,11 @@ class Handler(BaseHTTPRequestHandler):
     def local_only(self):
         host = (self.headers.get("Host") or "").split(":")[0]
         origin = self.headers.get("Origin")
+        port = self.server.server_address[1]
         ok_host = host in ("127.0.0.1", "localhost")
-        ok_origin = origin is None or re.match(r"^http://(127\.0\.0\.1|localhost):\d+$", origin)
+        own = origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}")
+        # A page on another site can post here blind; only this page's own posts count.
+        ok_origin = own if self.command == "POST" else (origin is None or own)
         if not (ok_host and ok_origin):
             self.send({"ok": False, "error": "local only"}, code=403)
             return False
@@ -486,7 +555,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send({
                 "names": NAMES, "roles": ROLES, "styles": list(STYLES), "colors": {k: v[0] for k, v in COLORS.items()},
                 "modes": MODES, "home": str(Path.home()), "sep": os.sep,
-                "hasToken": bool(os.environ.get("ROOFR_EXTERNAL_TOKEN")),
+                "hasToken": bool(INSTALLER_TOKEN),
                 "user": os.environ.get("ASSISTANT_USER_NAME", ""),
             })
         else:
@@ -499,10 +568,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
         except ValueError:
-            body = {}
-        if self.path == "/apply":
+            body = None
+        if not isinstance(body, dict):
+            self.send({"ok": False, "error": "Setup could not read the form. Reload the page and try again."})
+        elif self.path == "/apply":
             try:
                 self.send(configure(body))
+            except ValueError as error:  # something the person can fix
+                self.send({"ok": False, "error": str(error)})
             except Exception as error:  # the page shows it to the person
                 self.send({"ok": False, "error": f"{type(error).__name__}: {error}"})
         elif self.path == "/open":
