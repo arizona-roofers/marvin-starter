@@ -613,12 +613,13 @@ def write_shortcut(name, workspace, log):
     if IS_WINDOWS:
         shortcut = desktop / f"{name}.cmd"
         lines = ["@echo off", "chcp 65001 >nul", f"title {name}", f'cd /d "{workspace}"',
-                 'set "PATH=%USERPROFILE%\\.local\\bin;%PATH%"', "claude", "if errorlevel 1 pause", ""]
+                 'set "PATH=%USERPROFILE%\\.local\\bin;%PATH%"', "claude --desktop || claude",
+                 "if errorlevel 1 pause", ""]
         shortcut.write_bytes("\r\n".join(lines).encode("utf-8"))
     else:
         shortcut = desktop / f"{name}.command"
         shortcut.write_text(
-            f'#!/bin/bash\nexport PATH="$HOME/.local/bin:$PATH"\ncd "{workspace}" && exec claude\n',
+            f'#!/bin/bash\nexport PATH="$HOME/.local/bin:$PATH"\ncd "{workspace}" && (claude --desktop || exec claude)\n',
             encoding="utf-8")
         shortcut.chmod(0o755)
     log.append(f"Desktop shortcut made: {shortcut.name}")
@@ -979,20 +980,37 @@ def open_folder(folder):
         subprocess.run(["open", folder], check=False)
 
 
-def open_claude():
-    """Bring up the Claude desktop app if it is installed. True if it started."""
+def open_claude(folder=""):
+    """Bring up the Claude desktop app, on the assistant's folder when one is given.
+
+    `claude --desktop` opens the app on the folder it is run from. It only works from
+    a real terminal window, so one is opened for a moment to run it.
+    """
+    workspace = Path(folder) if folder else None
+    cli = claude_cli()
+    if workspace and cli and workspace.parent == Path.home() and (workspace / ".assistant-name").exists():
+        try:
+            if IS_WINDOWS:
+                subprocess.Popen(["cmd", "/c", "start", "", "/min", "cmd", "/c", f'"{cli}" --desktop'],
+                                 cwd=str(workspace))
+                return True
+            if IS_MAC:
+                quoted = str(workspace).replace("\\", "\\\\").replace('"', '\\"')
+                tool = cli.replace("\\", "\\\\").replace('"', '\\"')
+                script = f'tell application "Terminal" to do script "cd \\"{quoted}\\" && \\"{tool}\\" --desktop; exit"'
+                if subprocess.run(["osascript", "-e", script], capture_output=True).returncode == 0:
+                    return True
+        except OSError:
+            pass
     try:
         if IS_WINDOWS:
-            app = Path(os.environ.get("LOCALAPPDATA", "")) / "AnthropicClaude" / "claude.exe"
-            if app.exists():
-                subprocess.Popen([str(app)])
+            where = claude_app_path()
+            if where and where.startswith("shell:"):
+                subprocess.Popen(["explorer", where])
                 return True
-            done = subprocess.run(
-                ["powershell", "-NoProfile", "-Command",
-                 "$a = Get-StartApps | Where-Object { $_.Name -eq 'Claude' } | Select-Object -First 1;"
-                 "if ($a) { Start-Process ('shell:AppsFolder\\' + $a.AppID) } else { exit 1 }"],
-                check=False)
-            return done.returncode == 0
+            if where:
+                subprocess.Popen([where])
+                return True
         if IS_MAC:
             where = claude_app_path()
             return subprocess.run(["open", where] if where else ["open", "-a", "Claude"], check=False).returncode == 0
@@ -1488,7 +1506,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as error:  # the page shows it to the person
                 self.send({"ok": False, "error": f"{type(error).__name__}: {error}"})
         elif self.path == "/open":
-            self.send({"ok": True, "claude": open_claude()})
+            self.send({"ok": True, "claude": open_claude(str(body.get("folder") or ""))})
         elif self.path == "/connectors/status":
             self.send(connectors_status(bool(body.get("fresh"))))
         elif self.path == "/installs/status":
