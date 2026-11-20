@@ -33,6 +33,40 @@ IS_MAC = sys.platform == "darwin"
 # Taken out of the environment so the apps this wizard opens do not inherit it.
 INSTALLER_TOKEN = os.environ.pop("ROOFR_EXTERNAL_TOKEN", "")
 
+
+def install_file():
+    """The install file this setup came from, if it can be found.
+
+    When Windows or macOS refuses to run the file, people start setup by pasting a
+    line instead. The file is still sitting in Downloads, and it can be read even
+    though it cannot be run, so the token and the knowledge pack still come along.
+    """
+    named = os.environ.get("ASSISTANT_INSTALL_FILE", "")
+    if named and Path(named).is_file():
+        return Path(named)
+    found = []
+    for folder in (Path.home() / "Downloads", Path.home() / "Desktop"):
+        if folder.is_dir():
+            found += [f for f in folder.glob("Install Assistant*") if f.suffix.lower() in (".cmd", ".command") and f.is_file()]
+            found += [f for f in folder.glob("Install Assistant*/Install Assistant*.command") if f.is_file()]
+    return max(found, key=lambda f: f.stat().st_mtime) if found else None
+
+
+def _token_from_install_file():
+    source = install_file()
+    if source is None:
+        return ""
+    try:
+        head = source.read_text(encoding="utf-8", errors="ignore")[:4000]
+    except OSError:
+        return ""
+    match = re.search(r"ROOFR_EXTERNAL_TOKEN=['\"]?([A-Za-z0-9_\-]{20,200})", head)
+    return match.group(1) if match else ""
+
+
+if not INSTALLER_TOKEN:
+    INSTALLER_TOKEN = _token_from_install_file()
+
 NAMES = ["Jarvis", "HAL", "WALL-E", "Friday", "Marvin", "Alfred", "Samantha", "Cortana", "Data", "R2"]
 
 ROLES = [
@@ -431,8 +465,8 @@ Think of `/start` and `/save` as bookends. Everything in between is just convers
 
 def pack_bytes():
     """The company knowledge pack as zip bytes, or None. It rides inside the install file."""
-    source = os.environ.get("ASSISTANT_INSTALL_FILE", "")
-    if not source or not Path(source).is_file():
+    source = install_file()
+    if source is None:
         return None
     chunks = []
     try:
