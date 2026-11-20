@@ -54,6 +54,13 @@
   ol.next { padding-left: 22px; margin: 0; }
   ol.next li { margin-bottom: 8px; }
   a { color: var(--accent); }
+  .go.quiet { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  ol.steps li { margin-bottom: 14px; }
+  button.step {
+    display: block; margin: 0 0 6px; padding: 9px 14px; font: inherit; font-weight: 700; cursor: pointer;
+    color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 9px;
+  }
+  button.step.done { background: transparent; color: var(--ok); border: 1px solid var(--line); }
   table.cmds { border-collapse: collapse; width: 100%; }
   table.cmds td { padding: 7px 0; vertical-align: top; border-top: 1px solid var(--line); }
   table.cmds tr:first-child td { border-top: 0; }
@@ -142,16 +149,30 @@
       </table>
       <p class="hint">Everything else is plain English. The full list is in <b>START-HERE.md</b> in your folder.</p>
     </section>
+    <button class="go" id="open">Open Claude and the folder</button>
+    <p class="hint" id="open-note" style="text-align:center;margin:12px 0 24px"></p>
+
     <section>
-      <h2>Three more things, when you have a minute</h2>
+      <h2>Connect Chrome</h2>
+      <p class="hint" style="margin:0 0 12px">This lets your assistant work in web pages for you. Three clicks, in order.</p>
+      <ol class="next steps">
+        <li><button class="step" data-page="google">Sign in to Google</button>
+          Use your work email. If Chrome offers to sign you in to Chrome too, say yes: the Roofr Assist extension then installs itself.</li>
+        <li><button class="step" data-page="extension">Add Claude to Chrome</button>
+          Click <b>Add to Chrome</b> on the page that opens. If Chrome already asked you to turn on "Claude", click <b>Enable</b> instead.</li>
+        <li><button class="step" data-page="claude">Sign in to Claude</button>
+          Use the same work email. Then click the puzzle piece at the top right of Chrome and pin <b>Claude</b>.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>Two more things, when you have a minute</h2>
       <ol class="next">
         <li><b>Phone:</b> install the Claude app on your phone and sign in with the same work email. Your chats show up there.</li>
-        <li><b>Chrome:</b> sign in to Chrome with your work email. The Roofr Assist extension installs itself. Then add <a href="https://claude.ai/chrome" target="_blank" rel="noopener">Claude in Chrome</a> so your assistant can work in web pages.</li>
         <li><b>Email and calendar:</b> in the Claude app, open Settings, then Connectors, and connect Gmail, Google Calendar and Google Drive.</li>
       </ol>
     </section>
-    <button class="go" id="open">Open Claude and the folder</button>
-    <p class="hint" id="open-note" style="text-align:center;margin-top:12px">You can close this tab when you are done.</p>
+    <button class="go quiet" id="finish">I'm done</button>
+    <p class="hint" id="finish-note" style="text-align:center;margin-top:12px">Keep this tab open until you have finished the steps above.</p>
   </div>
 </main>
 <script>
@@ -228,9 +249,24 @@ $('open').onclick = async () => {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: result.folder }),
   })).json()
   $('open-note').textContent = opened.claude
-    ? 'Claude is opening. You can close this tab.'
+    ? 'Claude is opening. Come back here for the Chrome steps.'
     : 'The folder is open. Claude did not start by itself: open it from your Start menu or Applications.'
-  fetch('/quit', { method: 'POST' })
+}
+
+for (const button of document.querySelectorAll('button.step')) {
+  button.onclick = async () => {
+    await fetch('/chrome', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: button.dataset.page }),
+    })
+    button.classList.add('done')
+    button.textContent = '✓ ' + button.textContent.replace(/^✓ /, '')
+  }
+}
+
+$('finish').onclick = async () => {
+  await fetch('/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+  $('finish').disabled = true
+  $('finish-note').textContent = 'Setup is finished. You can close this tab and the setup window.'
 }
 
 load()

@@ -84,6 +84,20 @@ elif os.name == "nt":
     local = Path(os.environ.get("LOCALAPPDATA", ""))
     note("Claude desktop app installed", (local / "AnthropicClaude" / "claude.exe").exists())
 
+print("Chrome")
+EXT = "fcoeoabgfenejglbffodgkkbkcdhcgfn"
+if os.name == "nt":
+    import winreg
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Google\Chrome\Extensions" + "\\" + EXT)
+        offered = "clients2.google.com" in winreg.QueryValueEx(key, "update_url")[0]
+    except OSError:
+        offered = False
+else:
+    offered = "clients2.google.com" in read(
+        home / "Library" / "Application Support" / "Google" / "Chrome" / "External Extensions" / (EXT + ".json"))
+check("Claude extension offered to Chrome", offered)
+
 if sys.argv[1:] == ["again"]:
     print("Second run")
     check("the person's own note survived", "my own note" in read(work / "state" / "goals.md"))

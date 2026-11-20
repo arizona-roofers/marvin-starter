@@ -458,6 +458,9 @@ def configure(a):
     except OSError:
         log.append("The desktop shortcut could not be made. Open the folder from the Claude app instead.")
 
+    if a.get("chrome", True) and not os.environ.get("ASSISTANT_SKIP_CHROME"):
+        offer_extension(log)
+
     missing = missing_apps()
     if missing:
         log.append("Still to install: " + "; ".join(missing) + ".")
@@ -487,6 +490,68 @@ def missing_apps():
     if not has_chrome:
         missing.append("Google Chrome (google.com/chrome)")
     return missing
+
+
+# Anthropic's Claude in Chrome extension, as listed on the Chrome Web Store.
+CLAUDE_EXTENSION = "fcoeoabgfenejglbffodgkkbkcdhcgfn"
+WEB_STORE_UPDATES = "https://clients2.google.com/service/update2/crx"
+
+# The only pages the setup page may ask Chrome to open.
+CHROME_PAGES = {
+    "google": "https://accounts.google.com/",
+    "extension": "https://chromewebstore.google.com/detail/claude/" + CLAUDE_EXTENSION,
+    "claude": "https://claude.ai/login",
+}
+
+
+def offer_extension(log):
+    """Ask Chrome to offer Claude in Chrome the next time it starts.
+
+    This is Chrome's own "external extension" route. Chrome shows the person a
+    box to turn the extension on; nothing is installed behind their back.
+    """
+    try:
+        if IS_WINDOWS:
+            import winreg
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Google\Chrome\Extensions" + "\\" + CLAUDE_EXTENSION)
+            winreg.SetValueEx(key, "update_url", 0, winreg.REG_SZ, WEB_STORE_UPDATES)
+            winreg.CloseKey(key)
+        elif IS_MAC:
+            folder = Path.home() / "Library" / "Application Support" / "Google" / "Chrome" / "External Extensions"
+            folder.mkdir(parents=True, exist_ok=True)
+            (folder / (CLAUDE_EXTENSION + ".json")).write_text(
+                json.dumps({"external_update_url": WEB_STORE_UPDATES}) + "\n", encoding="utf-8")
+        else:
+            return
+        log.append("Chrome will offer the Claude extension the next time it opens.")
+    except OSError:
+        pass  # the setup page's own button covers it
+
+
+def chrome_path():
+    if IS_WINDOWS:
+        for var in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+            exe = Path(os.environ.get(var, "")) / "Google" / "Chrome" / "Application" / "chrome.exe"
+            if exe.exists():
+                return str(exe)
+    return None
+
+
+def open_in_chrome(page):
+    """Open one of CHROME_PAGES in Chrome (the default browser if Chrome is missing)."""
+    url = CHROME_PAGES.get(page)
+    if url is None:
+        return False
+    try:
+        if IS_WINDOWS and chrome_path():
+            subprocess.Popen([chrome_path(), url])
+            return True
+        if IS_MAC and subprocess.run(["open", "-a", "Google Chrome", url], check=False).returncode == 0:
+            return True
+    except OSError:
+        pass
+    webbrowser.open(url)
+    return False
 
 
 def open_folder(folder):
@@ -583,6 +648,8 @@ class Handler(BaseHTTPRequestHandler):
             if Path(folder).is_dir():
                 open_folder(folder)
             self.send({"ok": True, "claude": open_claude()})
+        elif self.path == "/chrome":
+            self.send({"ok": body.get("page") in CHROME_PAGES, "chrome": open_in_chrome(body.get("page"))})
         elif self.path == "/quit":
             self.send({"ok": True})
             threading.Thread(target=self.server.shutdown, daemon=True).start()
