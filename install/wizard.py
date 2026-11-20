@@ -240,6 +240,15 @@ def company_section(a, workspace):
     ]
     if first:
         lines += [f"For a {a['role']}, these come up most:", ""] + first + [""]
+    if (workspace / ".claude" / "skills" / "roofr-changes" / "SKILL.md").exists():
+        lines += [
+            "### Changing things in Roofr",
+            "",
+            "Use the `roofr-changes` skill. Changes are made in the person's own Chrome, signed",
+            "in as them, so Roofr's own permissions decide what is allowed. Say what you are",
+            "about to change and wait for a yes, every time. The data API above is read-only.",
+            "",
+        ]
     if (pack / "travis.md").exists():
         # The opening paragraph of the bio goes here, so it is in mind in every chat.
         bio = (pack / "travis.md").read_text(encoding="utf-8")
@@ -394,6 +403,7 @@ Think of `/start` and `/save` as bookends. Everything in between is just convers
 ## Things to try
 
 {examples}
+- "Move the Lopez job to Needs Rescheduled." ({name} tells you what it will change and waits for your yes)
 - "Remember that I work Tuesday to Saturday."
 
 ## Good to know
@@ -446,11 +456,16 @@ def load_pack(workspace, log):
             return
     written = 0
     for name, content in files.items():
-        # Only plain notes, only inside the company folder.
-        if not re.fullmatch(r"(?:[A-Za-z0-9_-]+/)?[A-Za-z0-9_-]+\.md", name):
+        # Only plain notes. skills/<name>/SKILL.md becomes a skill; the rest goes in company/.
+        skill = re.fullmatch(r"skills/([A-Za-z0-9_-]+)/SKILL\.md", name)
+        if skill:
+            dest = workspace / ".claude" / "skills" / skill.group(1) / "SKILL.md"
+        elif re.fullmatch(r"(?:[A-Za-z0-9_-]+/)?[A-Za-z0-9_-]+\.md", name) and not name.startswith("skills/"):
+            dest = target / name
+        else:
             continue
-        (target / name).parent.mkdir(parents=True, exist_ok=True)
-        (target / name).write_bytes(content)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(content)
         written += 1
     if written:
         log.append(f"Company knowledge added: {written} files of facts and SOPs.")

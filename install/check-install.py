@@ -53,6 +53,7 @@ check("role focus in CLAUDE.md", "Running appointments and closing jobs" in clau
 check("Roofr name in CLAUDE.md", "Pat Example" in claude_md)
 check("role examples in START-HERE.md", "Show me my open jobs" in read(work / "START-HERE.md"))
 check("knowledge pack unpacked", (work / "company" / "README.md").exists() and (work / "company" / "sops" / "booking.md").exists())
+check("skill from the pack installed", (work / ".claude" / "skills" / "roofr-changes" / "SKILL.md").exists() and "Changing things in Roofr" in claude_md)
 check("CLAUDE.md points at the pack", "company/README.md" in claude_md and "company/sops/booking.md" in claude_md)
 
 print("Color modes")
