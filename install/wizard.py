@@ -358,8 +358,10 @@ and today's session log (or yesterday's), then give a briefing.
 | Command | What it does |
 |---------|--------------|
 | `/start` | Start the day: reads the notes and gives a briefing |
-| `/update` | Quick checkpoint in the middle of work |
 | `/save` | Save everything when done, so the next chat picks up from here |
+| `/compact` | Built in: shrinks a long chat to a summary and carries on |
+| `/clear` | Built in: wipes the current chat. Suggest `/save` first |
+| `/update` | Quick checkpoint in the middle of work |
 | `/help` | List every command and connected tool |
 | `/report` | Weekly summary of the work done |
 | `/status` | Check that everything is connected and healthy |
@@ -388,13 +390,14 @@ def start_here(name, role=""):
 {name} is your AI assistant. You talk to it in plain English. The commands below
 are shortcuts: type one in the chat box and press Enter.
 
-## The three you will use every day
+## The four commands
 
 | Type this | When | What happens |
 |-----------|------|--------------|
 | `/start` | First thing, in a new chat | {name} reads its notes and tells you where things stand |
-| `/update` | In the middle of work | A quick checkpoint, so nothing is lost |
 | `/save` | When you are done | {name} writes a summary and saves it, so tomorrow's chat picks up from here |
+| `/compact` | When a chat has got long | Shrinks the chat to a summary, so {name} stays quick and keeps going |
+| `/clear` | When you want a fresh start | Wipes the current chat. Run `/save` first if you want it remembered |
 
 Think of `/start` and `/save` as bookends. Everything in between is just conversation.
 
@@ -402,11 +405,11 @@ Think of `/start` and `/save` as bookends. Everything in between is just convers
 
 | Type this | What happens |
 |-----------|--------------|
+| `/update` | A quick checkpoint in the middle of work, so nothing is lost |
 | `/help` | Lists every command and what {name} is connected to |
 | `/report` | A summary of your week |
 | `/status` | Checks that everything is connected and working |
 | `/tint azr` | Colors this chat. Try `azr`, `personal`, `ava`, `scheduler`, `dialer`, or `off` |
-| `/clear` | Wipes the current chat and starts fresh (run `/save` first) |
 
 ## Things to try
 
@@ -719,6 +722,7 @@ CHROME_PAGES = {
     "github-device": "https://github.com/login/device",
     "github-signup": "https://github.com/signup",
     "claude-download": "https://claude.ai/download",
+    "connectors": "https://claude.ai/settings/connectors",
 }
 
 
@@ -777,9 +781,53 @@ def open_in_chrome(page):
 GITHUB = {"state": "none", "code": "", "user": "", "error": ""}
 
 
+GH_TOOL = {"tried": False}
+
+
+def gh_path():
+    local = Path.home() / ".local" / "bin" / ("gh.exe" if IS_WINDOWS else "gh")
+    return shutil.which("gh") or (str(local) if local.exists() else None)
+
+
+def ensure_gh():
+    """Put GitHub's own command-line tool in ~/.local/bin if this computer has none."""
+    if gh_path() or GH_TOOL["tried"]:
+        return
+    GH_TOOL["tried"] = True
+    import platform
+    import tempfile
+    import urllib.request
+    arm = platform.machine().lower() in ("arm64", "aarch64")
+    want = ("macos_arm64.zip" if arm else "macos_amd64.zip") if IS_MAC else (
+        "windows_arm64.zip" if arm else "windows_amd64.zip") if IS_WINDOWS else None
+    if want is None:
+        return
+    work = Path(tempfile.mkdtemp(prefix="gh-tool-"))
+    try:
+        request = urllib.request.Request("https://api.github.com/repos/cli/cli/releases/latest",
+                                         headers={"User-Agent": "assistant-setup", "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(request, timeout=30) as reply:
+            assets = json.loads(reply.read()).get("assets", [])
+        url = next((a["browser_download_url"] for a in assets if a.get("name", "").lower().endswith(want)), None)
+        if not url or not url.startswith("https://github.com/cli/cli/releases/download/"):
+            return
+        _download(url, work / "gh.zip")
+        with zipfile.ZipFile(work / "gh.zip") as archive:
+            name = next(n for n in archive.namelist() if n.endswith("bin/gh.exe" if IS_WINDOWS else "bin/gh"))
+            target = Path.home() / ".local" / "bin" / Path(name).name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(archive.read(name))
+            if not IS_WINDOWS:
+                target.chmod(0o755)
+    except Exception:  # the page tells the person this step has to wait
+        pass
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def gh(*args, cwd=None, timeout=60):
     """Run the GitHub tool. Returns (worked, output)."""
-    exe = shutil.which("gh")
+    exe = gh_path()
     if exe is None:
         return False, "GitHub tool not installed"
     try:
@@ -818,7 +866,7 @@ def github_connect():
     github_refresh()
     if GITHUB["state"] in ("connected", "waiting"):
         return
-    exe = shutil.which("gh")
+    exe = gh_path()
     if exe is None:
         GITHUB.update(state="none", error="The GitHub tool is not installed on this computer.")
         return
@@ -1097,6 +1145,42 @@ def claude_login():
     threading.Thread(target=work, daemon=True).start()
 
 
+# --- Connectors (Gmail, Calendar, Drive): which ones Claude can already use ------------
+
+CONNECTORS = {"connected": [], "state": "unknown", "checking": False, "at": 0.0}
+
+
+def _read_connectors():
+    exe = claude_cli()
+    found, state = [], "unknown"
+    if exe:
+        try:
+            done = subprocess.run([exe, "mcp", "list"], capture_output=True, text=True, encoding="utf-8",
+                                  errors="replace", timeout=120, stdin=subprocess.DEVNULL)
+            for line in done.stdout.splitlines():
+                match = re.match(r"\s*claude\.ai ([^:]+):.*?(Connected|Needs authentication|Failed)", line)
+                if match:
+                    state = "known"
+                    if match.group(2) == "Connected":
+                        found.append(match.group(1).strip())
+            if claude_account().get("state") in ("work", "other"):
+                state = "known"  # signed in, so an empty list means none are connected yet
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    CONNECTORS.update(connected=found, state=state, checking=False, at=__import__("time").time())
+
+
+def connectors_status(fresh=False):
+    """What is connected, from the last look. A new look runs in the background."""
+    import time
+    stale = time.time() - CONNECTORS["at"] > 5
+    if (fresh or stale) and not CONNECTORS["checking"]:
+        CONNECTORS["checking"] = True
+        threading.Thread(target=_read_connectors, daemon=True).start()
+    return {"ok": True, "connected": CONNECTORS["connected"], "state": CONNECTORS["state"],
+            "checking": CONNECTORS["checking"]}
+
+
 PAGE = (Path(__file__).resolve().parent / "wizard.html")
 
 
@@ -1131,6 +1215,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path.split("?")[0] == "/":
             self.send(PAGE.read_bytes(), "text/html; charset=utf-8")
+        elif re.fullmatch(r"/img/[a-z0-9-]+\.png", self.path) and (PAGE.parent / self.path[1:]).is_file():
+            self.send((PAGE.parent / self.path[1:]).read_bytes(), "image/png")
         elif self.path == "/options":
             self.send({
                 "names": NAMES, "roles": ROLES, "styles": list(STYLES), "colors": {k: v[0] for k, v in COLORS.items()},
@@ -1160,6 +1246,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send({"ok": False, "error": f"{type(error).__name__}: {error}"})
         elif self.path == "/open":
             self.send({"ok": True, "claude": open_claude()})
+        elif self.path == "/connectors/status":
+            self.send(connectors_status(bool(body.get("fresh"))))
         elif self.path == "/account/status":
             self.send(claude_account())
         elif self.path == "/account/login":
@@ -1174,10 +1262,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send({"ok": body.get("page") in CHROME_PAGES, "chrome": open_in_chrome(body.get("page"))})
         elif self.path == "/github/connect":
             github_connect()
-            self.send(dict(GITHUB, ok=True, installed=shutil.which("gh") is not None))
+            self.send(dict(GITHUB, ok=True, installed=gh_path() is not None))
         elif self.path == "/github/status":
+            ensure_gh()
             github_refresh()
-            self.send(dict(GITHUB, ok=True, installed=shutil.which("gh") is not None))
+            self.send(dict(GITHUB, ok=True, installed=gh_path() is not None))
         elif self.path == "/github/backup":
             self.send(github_backup(str(body.get("folder") or "")))
         elif self.path == "/quit":

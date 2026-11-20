@@ -38,7 +38,7 @@ print("Workspace")
 check("starter downloaded to ~/.assistant-starter", (home / ".assistant-starter" / "install" / "wizard.py").exists())
 check("workspace folder ~/friday", work.is_dir())
 check("CLAUDE.md names the assistant and the person", "FRIDAY" in read(work / "CLAUDE.md") and "Pat" in read(work / "CLAUDE.md"))
-check("START-HERE.md written", "/save" in read(work / "START-HERE.md"))
+check("START-HERE.md written", "/save" in read(work / "START-HERE.md") and "/compact" in read(work / "START-HERE.md"))
 check("/save command present, /end gone",
       (work / ".claude" / "commands" / "save.md").exists() and not (work / ".claude" / "commands" / "end.md").exists())
 check("Roofr skill present", (work / ".claude" / "skills" / "roofr-api" / "SKILL.md").exists())

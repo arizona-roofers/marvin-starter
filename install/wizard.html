@@ -77,11 +77,13 @@
     color: var(--ink); border: 1px solid var(--line); border-radius: 12px;
   }
   a.store .qr { background: #fff; padding: 6px; border-radius: 8px; line-height: 0; }
-  a.store .qr svg { width: 128px; height: 128px; }
+  a.store .qr { display: block; margin: 0 auto; }
+  a.store .qr svg { display: block; width: 132px; height: 132px; }
   .phones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   @media (max-width: 520px) { .phones { grid-template-columns: 1fr; } .stores { grid-template-columns: 1fr; } }
   .phones figure { margin: 0; text-align: center; }
-  .phones svg { width: 100%; max-width: 120px; height: auto; }
+  .phones img { width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--edge); display: block;
+    box-shadow: 0 14px 30px -18px rgba(0, 0, 0, .7); }
   .phones figcaption { font-size: 14px; color: var(--soft); margin-top: 6px; }
   .phones figcaption b { display: block; color: var(--ink); }
   .ph { fill: var(--bg); stroke: var(--line); stroke-width: 2; }
@@ -154,6 +156,18 @@
   .bar { display: flex; gap: 6px; margin: 0 0 22px; }
   .bar i { flex: 1; height: 4px; border-radius: 4px; background: var(--edge); transition: background .4s; }
   .bar i.on { background: var(--accent); }
+  .chat { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+  .chat .said { align-self: flex-end; background: var(--accent); color: var(--accent-ink); padding: 8px 14px;
+    border-radius: 16px 16px 4px 16px; font-family: ui-monospace, Consolas, monospace; font-weight: 700; }
+  .chat .reply { align-self: flex-start; background: color-mix(in srgb, var(--bg) 60%, transparent); border: 1px solid var(--edge);
+    padding: 10px 14px; border-radius: 16px 16px 16px 4px; max-width: 92%; animation: arrive .3s ease; }
+  .chat .reply b { color: var(--ok); }
+  ul.conn { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; }
+  ul.conn li { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 14px; border: 1px solid var(--edge);
+    border-radius: 12px; background: color-mix(in srgb, var(--bg) 55%, transparent); }
+  ul.conn .mark { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--edge); flex: none; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
+  ul.conn li.on .mark { background: var(--ok); border-color: var(--ok); color: #fff; }
+  ul.conn li.on .mark::before { content: "\2713"; }
   .progress { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -331,10 +345,10 @@
       <p class="hint" style="margin:0 0 12px">Point your phone's camera at the code for your phone.</p>
       <div class="stores">
         <a class="store" href="https://apps.apple.com/us/app/claude-by-anthropic/id6473753684" target="_blank" rel="noopener">
-          <span class="qr"><svg width="111" height="111" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h37v37h-37z"/><path class="qrline" stroke="#111" d="M2 2.5h7m4 0h6m1 0h2m2 0h2m2 0h7m-33 1h1m5 0h1m2 0h1m1 0h1m3 0h2m1 0h1m1 0h1m1 0h2m2 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m1 0h1m4 0h5m1 0h1m3 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m5 0h2m3 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m3 0h3m2 0h1m1 0h1m2 0h1m2 0h1m2 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m1 0h3m1 0h1m2 0h1m2 0h4m4 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-24 1h2m3 0h1m2 0h2m1 0h2m1 0h1m-24 1h1m2 0h1m1 0h2m1 0h2m1 0h4m3 0h1m2 0h1m2 0h2m1 0h1m-28 1h6m2 0h1m1 0h4m2 0h2m2 0h1m1 0h1m2 0h3m4 0h1m-33 1h2m2 0h1m1 0h1m2 0h2m1 0h2m5 0h1m1 0h2m2 0h1m1 0h2m1 0h1m1 0h1m-33 1h2m1 0h3m1 0h1m1 0h1m1 0h1m1 0h3m4 0h4m2 0h1m1 0h2m2 0h1m-33 1h3m1 0h4m1 0h3m2 0h1m2 0h2m1 0h2m2 0h1m1 0h2m1 0h1m2 0h1m-33 1h1m4 0h1m2 0h1m1 0h4m2 0h1m1 0h4m2 0h1m1 0h1m1 0h1m2 0h2m-33 1h1m3 0h5m4 0h2m5 0h1m1 0h5m3 0h2m-30 1h1m1 0h2m1 0h2m2 0h1m5 0h3m1 0h1m1 0h2m1 0h2m3 0h1m-31 1h1m2 0h4m1 0h3m1 0h2m1 0h2m2 0h3m3 0h1m1 0h1m2 0h1m-32 1h1m1 0h1m2 0h1m1 0h4m2 0h1m2 0h1m1 0h1m2 0h5m1 0h1m1 0h1m1 0h1m-32 1h1m2 0h5m2 0h1m1 0h1m4 0h1m2 0h1m1 0h1m1 0h2m4 0h3m-33 1h1m1 0h2m1 0h1m2 0h3m2 0h1m1 0h9m1 0h1m1 0h1m-26 1h1m3 0h1m5 0h3m3 0h2m1 0h1m1 0h1m1 0h1m5 0h2m-30 1h1m1 0h1m2 0h1m1 0h2m1 0h1m3 0h2m1 0h2m2 0h3m4 0h2m-33 1h3m1 0h1m1 0h1m1 0h4m1 0h2m1 0h1m2 0h1m4 0h4m2 0h1m1 0h1m-32 1h2m2 0h1m1 0h3m3 0h4m1 0h1m2 0h1m1 0h2m1 0h1m1 0h2m1 0h1m-32 1h1m1 0h3m1 0h1m1 0h1m2 0h3m2 0h2m1 0h3m1 0h6m2 0h1m-24 1h1m4 0h2m2 0h3m2 0h1m1 0h1m3 0h2m2 0h1m-33 1h7m3 0h3m5 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h4m-32 1h1m5 0h1m1 0h1m1 0h2m4 0h7m1 0h1m3 0h1m3 0h1m-33 1h1m1 0h3m1 0h1m4 0h12m1 0h6m1 0h2m-33 1h1m1 0h3m1 0h1m1 0h2m1 0h4m3 0h1m1 0h1m5 0h1m1 0h2m-30 1h1m1 0h3m1 0h1m2 0h1m4 0h1m2 0h2m5 0h2m2 0h3m1 0h1m-33 1h1m5 0h1m2 0h1m2 0h2m3 0h3m1 0h4m4 0h1m-30 1h7m1 0h5m1 0h1m1 0h1m1 0h1m2 0h1m2 0h2m2 0h2m1 0h1"/></g></svg></span>
+          <span class="qr"><svg viewBox="0 0 111 111" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h37v37h-37z"/><path class="qrline" stroke="#111" d="M2 2.5h7m4 0h6m1 0h2m2 0h2m2 0h7m-33 1h1m5 0h1m2 0h1m1 0h1m3 0h2m1 0h1m1 0h1m1 0h2m2 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m1 0h1m4 0h5m1 0h1m3 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m5 0h2m3 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m3 0h3m2 0h1m1 0h1m2 0h1m2 0h1m2 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m1 0h3m1 0h1m2 0h1m2 0h4m4 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-24 1h2m3 0h1m2 0h2m1 0h2m1 0h1m-24 1h1m2 0h1m1 0h2m1 0h2m1 0h4m3 0h1m2 0h1m2 0h2m1 0h1m-28 1h6m2 0h1m1 0h4m2 0h2m2 0h1m1 0h1m2 0h3m4 0h1m-33 1h2m2 0h1m1 0h1m2 0h2m1 0h2m5 0h1m1 0h2m2 0h1m1 0h2m1 0h1m1 0h1m-33 1h2m1 0h3m1 0h1m1 0h1m1 0h1m1 0h3m4 0h4m2 0h1m1 0h2m2 0h1m-33 1h3m1 0h4m1 0h3m2 0h1m2 0h2m1 0h2m2 0h1m1 0h2m1 0h1m2 0h1m-33 1h1m4 0h1m2 0h1m1 0h4m2 0h1m1 0h4m2 0h1m1 0h1m1 0h1m2 0h2m-33 1h1m3 0h5m4 0h2m5 0h1m1 0h5m3 0h2m-30 1h1m1 0h2m1 0h2m2 0h1m5 0h3m1 0h1m1 0h2m1 0h2m3 0h1m-31 1h1m2 0h4m1 0h3m1 0h2m1 0h2m2 0h3m3 0h1m1 0h1m2 0h1m-32 1h1m1 0h1m2 0h1m1 0h4m2 0h1m2 0h1m1 0h1m2 0h5m1 0h1m1 0h1m1 0h1m-32 1h1m2 0h5m2 0h1m1 0h1m4 0h1m2 0h1m1 0h1m1 0h2m4 0h3m-33 1h1m1 0h2m1 0h1m2 0h3m2 0h1m1 0h9m1 0h1m1 0h1m-26 1h1m3 0h1m5 0h3m3 0h2m1 0h1m1 0h1m1 0h1m5 0h2m-30 1h1m1 0h1m2 0h1m1 0h2m1 0h1m3 0h2m1 0h2m2 0h3m4 0h2m-33 1h3m1 0h1m1 0h1m1 0h4m1 0h2m1 0h1m2 0h1m4 0h4m2 0h1m1 0h1m-32 1h2m2 0h1m1 0h3m3 0h4m1 0h1m2 0h1m1 0h2m1 0h1m1 0h2m1 0h1m-32 1h1m1 0h3m1 0h1m1 0h1m2 0h3m2 0h2m1 0h3m1 0h6m2 0h1m-24 1h1m4 0h2m2 0h3m2 0h1m1 0h1m3 0h2m2 0h1m-33 1h7m3 0h3m5 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h4m-32 1h1m5 0h1m1 0h1m1 0h2m4 0h7m1 0h1m3 0h1m3 0h1m-33 1h1m1 0h3m1 0h1m4 0h12m1 0h6m1 0h2m-33 1h1m1 0h3m1 0h1m1 0h2m1 0h4m3 0h1m1 0h1m5 0h1m1 0h2m-30 1h1m1 0h3m1 0h1m2 0h1m4 0h1m2 0h2m5 0h2m2 0h3m1 0h1m-33 1h1m5 0h1m2 0h1m2 0h2m3 0h3m1 0h4m4 0h1m-30 1h7m1 0h5m1 0h1m1 0h1m1 0h1m2 0h1m2 0h2m2 0h2m1 0h1"/></g></svg></span>
           <b>iPhone</b><span class="hint">App Store</span></a>
         <a class="store" href="https://play.google.com/store/apps/details?id=com.anthropic.claude" target="_blank" rel="noopener">
-          <span class="qr"><svg width="123" height="123" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h41v41h-41z"/><path class="qrline" stroke="#111" d="M2 2.5h7m1 0h2m7 0h3m1 0h4m1 0h1m3 0h7m-37 1h1m5 0h1m3 0h1m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m3 0h2m1 0h1m1 0h1m5 0h1m-37 1h1m1 0h3m1 0h1m1 0h4m1 0h2m2 0h1m3 0h1m1 0h3m1 0h2m1 0h1m1 0h3m1 0h1m-37 1h1m1 0h3m1 0h1m2 0h2m2 0h2m1 0h2m1 0h4m1 0h4m2 0h1m1 0h3m1 0h1m-37 1h1m1 0h3m1 0h1m4 0h2m1 0h5m6 0h2m3 0h1m1 0h3m1 0h1m-37 1h1m5 0h1m1 0h1m1 0h3m2 0h2m4 0h2m1 0h2m2 0h1m1 0h1m5 0h1m-37 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-27 1h3m2 0h1m2 0h1m2 0h1m1 0h2m1 0h3m-29 1h1m1 0h1m3 0h2m1 0h1m3 0h7m1 0h1m2 0h1m1 0h1m1 0h1m2 0h1m2 0h1m1 0h1m-37 1h1m2 0h2m6 0h1m1 0h1m2 0h3m8 0h2m1 0h2m1 0h1m1 0h2m-34 1h1m2 0h2m1 0h1m2 0h2m2 0h1m2 0h1m1 0h1m1 0h1m3 0h4m1 0h3m1 0h1m-37 1h1m1 0h1m5 0h2m1 0h1m2 0h3m1 0h1m5 0h1m1 0h1m-26 1h2m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m4 0h1m3 0h2m2 0h2m1 0h1m5 0h1m-36 1h2m1 0h2m1 0h2m5 0h4m1 0h2m2 0h1m1 0h1m1 0h2m1 0h2m1 0h1m2 0h1m-31 1h1m1 0h4m3 0h2m2 0h5m3 0h1m5 0h2m1 0h1m-36 1h1m1 0h1m1 0h1m2 0h2m1 0h1m1 0h2m1 0h2m4 0h1m1 0h1m2 0h2m1 0h4m1 0h1m-33 1h2m1 0h1m4 0h4m2 0h1m1 0h4m1 0h1m2 0h1m2 0h2m3 0h1m-34 1h1m5 0h1m2 0h3m6 0h6m1 0h5m1 0h4m-37 1h2m2 0h3m4 0h3m1 0h1m1 0h1m2 0h1m2 0h3m1 0h1m3 0h1m2 0h1m1 0h1m-37 1h3m1 0h1m2 0h2m3 0h1m6 0h2m1 0h1m1 0h1m2 0h2m2 0h3m-33 1h1m4 0h6m2 0h3m6 0h2m3 0h1m1 0h2m1 0h1m1 0h1m-36 1h1m3 0h2m2 0h1m2 0h6m2 0h6m2 0h2m1 0h1m5 0h1m-34 1h1m2 0h3m1 0h1m2 0h1m1 0h1m1 0h3m3 0h1m2 0h3m1 0h1m2 0h2m1 0h1m-34 1h2m6 0h1m1 0h2m3 0h1m2 0h1m1 0h2m1 0h3m2 0h3m1 0h2m-35 1h3m1 0h2m1 0h5m2 0h4m1 0h1m2 0h1m3 0h1m1 0h2m-29 1h1m5 0h1m1 0h1m2 0h1m1 0h1m1 0h1m4 0h2m2 0h2m1 0h1m5 0h1m-37 1h2m1 0h2m1 0h1m1 0h2m4 0h1m1 0h2m1 0h1m2 0h2m1 0h1m1 0h4m1 0h1m3 0h1m-35 1h1m1 0h1m4 0h3m1 0h1m1 0h2m1 0h1m5 0h1m1 0h2m1 0h1m1 0h3m2 0h1m-37 1h3m1 0h4m2 0h2m2 0h1m1 0h1m2 0h2m2 0h2m1 0h8m1 0h2m-29 1h5m1 0h7m2 0h3m2 0h1m3 0h1m2 0h2m-37 1h7m1 0h4m2 0h2m3 0h1m1 0h3m1 0h1m2 0h1m1 0h1m1 0h1m2 0h2m-37 1h1m5 0h1m2 0h1m2 0h3m2 0h1m1 0h2m1 0h2m4 0h1m3 0h1m2 0h2m-37 1h1m1 0h3m1 0h1m2 0h1m1 0h3m1 0h1m1 0h1m2 0h4m3 0h6m2 0h2m-37 1h1m1 0h3m1 0h1m2 0h3m1 0h2m5 0h1m1 0h4m1 0h1m1 0h1m2 0h3m-35 1h1m1 0h3m1 0h1m1 0h1m3 0h1m2 0h1m1 0h1m2 0h2m1 0h1m3 0h1m3 0h2m3 0h1m-37 1h1m5 0h1m5 0h3m4 0h2m1 0h1m4 0h2m1 0h1m1 0h2m-34 1h7m1 0h1m3 0h1m1 0h3m3 0h1m1 0h3m3 0h4m1 0h1m2 0h1"/></g></svg></span>
+          <span class="qr"><svg viewBox="0 0 123 123" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h41v41h-41z"/><path class="qrline" stroke="#111" d="M2 2.5h7m1 0h2m7 0h3m1 0h4m1 0h1m3 0h7m-37 1h1m5 0h1m3 0h1m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m3 0h2m1 0h1m1 0h1m5 0h1m-37 1h1m1 0h3m1 0h1m1 0h4m1 0h2m2 0h1m3 0h1m1 0h3m1 0h2m1 0h1m1 0h3m1 0h1m-37 1h1m1 0h3m1 0h1m2 0h2m2 0h2m1 0h2m1 0h4m1 0h4m2 0h1m1 0h3m1 0h1m-37 1h1m1 0h3m1 0h1m4 0h2m1 0h5m6 0h2m3 0h1m1 0h3m1 0h1m-37 1h1m5 0h1m1 0h1m1 0h3m2 0h2m4 0h2m1 0h2m2 0h1m1 0h1m5 0h1m-37 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-27 1h3m2 0h1m2 0h1m2 0h1m1 0h2m1 0h3m-29 1h1m1 0h1m3 0h2m1 0h1m3 0h7m1 0h1m2 0h1m1 0h1m1 0h1m2 0h1m2 0h1m1 0h1m-37 1h1m2 0h2m6 0h1m1 0h1m2 0h3m8 0h2m1 0h2m1 0h1m1 0h2m-34 1h1m2 0h2m1 0h1m2 0h2m2 0h1m2 0h1m1 0h1m1 0h1m3 0h4m1 0h3m1 0h1m-37 1h1m1 0h1m5 0h2m1 0h1m2 0h3m1 0h1m5 0h1m1 0h1m-26 1h2m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m4 0h1m3 0h2m2 0h2m1 0h1m5 0h1m-36 1h2m1 0h2m1 0h2m5 0h4m1 0h2m2 0h1m1 0h1m1 0h2m1 0h2m1 0h1m2 0h1m-31 1h1m1 0h4m3 0h2m2 0h5m3 0h1m5 0h2m1 0h1m-36 1h1m1 0h1m1 0h1m2 0h2m1 0h1m1 0h2m1 0h2m4 0h1m1 0h1m2 0h2m1 0h4m1 0h1m-33 1h2m1 0h1m4 0h4m2 0h1m1 0h4m1 0h1m2 0h1m2 0h2m3 0h1m-34 1h1m5 0h1m2 0h3m6 0h6m1 0h5m1 0h4m-37 1h2m2 0h3m4 0h3m1 0h1m1 0h1m2 0h1m2 0h3m1 0h1m3 0h1m2 0h1m1 0h1m-37 1h3m1 0h1m2 0h2m3 0h1m6 0h2m1 0h1m1 0h1m2 0h2m2 0h3m-33 1h1m4 0h6m2 0h3m6 0h2m3 0h1m1 0h2m1 0h1m1 0h1m-36 1h1m3 0h2m2 0h1m2 0h6m2 0h6m2 0h2m1 0h1m5 0h1m-34 1h1m2 0h3m1 0h1m2 0h1m1 0h1m1 0h3m3 0h1m2 0h3m1 0h1m2 0h2m1 0h1m-34 1h2m6 0h1m1 0h2m3 0h1m2 0h1m1 0h2m1 0h3m2 0h3m1 0h2m-35 1h3m1 0h2m1 0h5m2 0h4m1 0h1m2 0h1m3 0h1m1 0h2m-29 1h1m5 0h1m1 0h1m2 0h1m1 0h1m1 0h1m4 0h2m2 0h2m1 0h1m5 0h1m-37 1h2m1 0h2m1 0h1m1 0h2m4 0h1m1 0h2m1 0h1m2 0h2m1 0h1m1 0h4m1 0h1m3 0h1m-35 1h1m1 0h1m4 0h3m1 0h1m1 0h2m1 0h1m5 0h1m1 0h2m1 0h1m1 0h3m2 0h1m-37 1h3m1 0h4m2 0h2m2 0h1m1 0h1m2 0h2m2 0h2m1 0h8m1 0h2m-29 1h5m1 0h7m2 0h3m2 0h1m3 0h1m2 0h2m-37 1h7m1 0h4m2 0h2m3 0h1m1 0h3m1 0h1m2 0h1m1 0h1m1 0h1m2 0h2m-37 1h1m5 0h1m2 0h1m2 0h3m2 0h1m1 0h2m1 0h2m4 0h1m3 0h1m2 0h2m-37 1h1m1 0h3m1 0h1m2 0h1m1 0h3m1 0h1m1 0h1m2 0h4m3 0h6m2 0h2m-37 1h1m1 0h3m1 0h1m2 0h3m1 0h2m5 0h1m1 0h4m1 0h1m1 0h1m2 0h3m-35 1h1m1 0h3m1 0h1m1 0h1m3 0h1m2 0h1m1 0h1m2 0h2m1 0h1m3 0h1m3 0h2m3 0h1m-37 1h1m5 0h1m5 0h3m4 0h2m1 0h1m4 0h2m1 0h1m1 0h2m-34 1h7m1 0h1m3 0h1m1 0h3m3 0h1m1 0h3m3 0h4m1 0h1m2 0h1"/></g></svg></span>
           <b>Android</b><span class="hint">Google Play</span></a>
       </div>
       <p class="hint">Sign in with the same work email you use on this computer.</p>
@@ -342,86 +356,88 @@
     <section>
       <h2>2. Find your chats</h2>
       <div class="phones">
-        <figure>
-          <svg viewBox="0 0 90 150" role="img" aria-label="Phone with the menu button at the top left highlighted">
-            <rect class="ph" x="3" y="3" width="84" height="144" rx="12"/>
-            <circle class="hl" cx="17" cy="19" r="9"/>
-            <path class="ink" d="M12 16h10M12 19h10M12 22h10"/>
-            <rect class="dim" x="14" y="44" width="62" height="6" rx="3"/>
-            <rect class="dim" x="14" y="56" width="46" height="6" rx="3"/>
-            <rect class="dim" x="10" y="124" width="70" height="14" rx="7"/>
-          </svg>
-          <figcaption><b>Tap the menu</b>The three lines at the top left.</figcaption>
-        </figure>
-        <figure>
-          <svg viewBox="0 0 90 150" role="img" aria-label="Phone menu with Code highlighted">
-            <rect class="ph" x="3" y="3" width="84" height="144" rx="12"/>
-            <rect class="panel" x="3" y="3" width="58" height="144" rx="12"/>
-            <rect class="dim" x="11" y="22" width="36" height="6" rx="3"/>
-            <rect class="hl" x="8" y="36" width="48" height="16" rx="6"/>
-            <text class="lbl" x="15" y="47.500">Code</text>
-            <rect class="dim" x="11" y="60" width="40" height="6" rx="3"/>
-            <rect class="dim" x="11" y="74" width="30" height="6" rx="3"/>
-          </svg>
-          <figcaption><b>Tap Code</b>It is in the menu that slides out.</figcaption>
-        </figure>
-        <figure>
-          <svg viewBox="0 0 90 150" role="img" aria-label="Phone showing a list of chats from the computer, one highlighted">
-            <rect class="ph" x="3" y="3" width="84" height="144" rx="12"/>
-            <text class="lbl small" x="12" y="22">Code</text>
-            <rect class="hl" x="9" y="30" width="72" height="24" rx="7"/>
-            <circle class="dot" cx="18" cy="42" r="3.500"/>
-            <rect class="inkfill" x="26" y="36" width="44" height="5" rx="2.500"/>
-            <rect class="dim" x="26" y="45" width="30" height="4" rx="2"/>
-            <rect class="row" x="9" y="60" width="72" height="24" rx="7"/>
-            <rect class="dim" x="26" y="66" width="40" height="5" rx="2.500"/>
-            <rect class="dim" x="26" y="75" width="26" height="4" rx="2"/>
-          </svg>
-          <figcaption><b>Tap a chat</b>The ones running on this computer are listed. Tap one to carry on.</figcaption>
-        </figure>
+        <figure><img src="/img/phone-1.png" alt="The Claude app's home screen with the menu button at the top left circled" loading="lazy">
+          <figcaption><b>Tap the menu</b>The lines at the top left.</figcaption></figure>
+        <figure><img src="/img/phone-2.png" alt="The Claude app's menu with Code circled" loading="lazy">
+          <figcaption><b>Tap Code</b>It is near the top of the menu.</figcaption></figure>
+        <figure><img src="/img/phone-3.png" alt="The Code screen listing chats from the computer, the first one circled" loading="lazy">
+          <figcaption><b>Tap a chat</b>Your computer's chats are under Sessions.</figcaption></figure>
       </div>
-      <p class="hint">A chat shows on your phone while this computer is on with Claude open. The pictures are a sketch; your app may look a little different.</p>
+      <p class="hint">A chat shows on your phone while this computer is on with Claude open. These are real screens from an Android phone with example chat names; an iPhone looks nearly the same.</p>
     </section>
     <div class="nav"><button class="go quiet back" data-go="5">Back</button><button class="go next" data-go="7">Next</button></div>
   </div>
 
   <div class="page" data-page="7" hidden>
-    <h1>The commands you will use</h1>
-    <p class="lede">Three shortcuts cover most days. Everything else is plain English.</p>
+    <h1>Four commands to know</h1>
+    <p class="lede">Type each one below, the way you will in Claude. It takes twenty seconds.</p>
     <section>
-      <table class="cmds">
-        <tr><td><code>/start</code></td><td>First thing in a new chat. It reads its notes and tells you where things stand.</td></tr>
-        <tr><td><code>/update</code></td><td>A quick checkpoint in the middle of work.</td></tr>
-        <tr><td><code>/save</code></td><td>When you are done. It saves a summary so tomorrow picks up from here.</td></tr>
-      </table>
-      <p class="hint">The full list is in <b>START-HERE.md</b> in your folder, or type <code>/help</code>.</p>
+      <div class="chat" id="drill-log" aria-live="polite"></div>
+      <label for="drill" id="drill-ask">Type <code>/start</code> and press Enter</label>
+      <input type="text" id="drill" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="/start">
+      <p class="hint" id="drill-hint">Start with the slash.</p>
     </section>
-    <div class="nav"><button class="go quiet back" data-go="6">Back</button><button class="go next" data-go="8">Next</button></div>
+    <div class="nav"><button class="go quiet back" data-go="6">Back</button><button class="go next" id="drill-next" data-go="8" disabled>Next</button></div>
   </div>
 
   <div class="page" data-page="8" hidden>
-    <h1>Last things</h1>
-    <p class="lede">None of these are required today.</p>
+    <h1>Connect your email and calendar</h1>
+    <p class="lede">So <span class="the-name">Jarvis</span> can read your inbox, check your calendar and find files. It only sees what you can see.</p>
     <section>
-      <h2>When you have a minute</h2>
-      <ol class="next" style="list-style:none;padding-left:0">
-        <li><b>Email and calendar:</b> in the Claude app, open Settings, then Connectors, and connect Gmail, Google Calendar and Google Drive.</li>
+      <ol class="next steps">
+        <li><button class="step" id="conn-open">Open Claude's connectors page</button>
+          It opens in Chrome. Sign in with your work email if it asks.</li>
+        <li>On that page, click <b>Connect</b> next to each of these, and choose your work Google account when Google asks:
+          <ul class="conn" id="conn-list">
+            <li data-conn="Gmail"><span class="mark"></span><b>Gmail</b></li>
+            <li data-conn="Google Calendar"><span class="mark"></span><b>Google Calendar</b></li>
+            <li data-conn="Google Drive"><span class="mark"></span><b>Google Drive</b></li>
+          </ul></li>
       </ol>
+      <p class="hint" id="conn-note">Each one gets a tick here once it is connected.</p>
+      <button type="button" class="copy" id="conn-check" style="margin:10px 0 0">Check again</button>
     </section>
-    <details class="what" id="github">
-      <summary>Back up to GitHub (optional)</summary>
-      <p class="hint" style="margin:12px 0">GitHub keeps a private copy of your assistant's notes, so nothing is lost if this computer is. Skip it if you are not sure.</p>
-      <p id="gh-missing" class="hint" hidden>The GitHub tool is not on this computer, so this step is not available. Ask Travis if you want it.</p>
+    <p class="hint" style="margin:0 0 14px">Don't see one of them on that page? Tell Travis; it may need switching on for the company.</p>
+    <div class="nav"><button class="go quiet back" data-go="7">Back</button><button class="go next" data-go="9">Next</button></div>
+  </div>
+
+  <div class="page" data-page="9" hidden>
+    <h1>Back up to GitHub</h1>
+    <p class="lede">GitHub keeps a private copy of <span class="the-name">Jarvis</span>'s notes, so nothing is lost if this computer is.</p>
+    <section id="github">
+      <p id="gh-missing" class="hint" hidden>Setup could not get the GitHub tool onto this computer, so this step has to wait. Tell Travis, then click Next.</p>
       <ol class="next steps" id="gh-steps">
+        <li><b>Do you already have a GitHub account?</b>
+          <div class="chips" style="margin:8px 0 4px">
+            <button type="button" class="chip" id="gh-have">Yes, I have one</button>
+            <button type="button" class="chip" id="gh-signup">No, make me one</button>
+          </div>
+          <span class="hint" id="gh-signup-note" hidden>GitHub's sign-up page opened in Chrome. Use your work email, pick any username, then come back here.</span></li>
         <li><button class="step" id="gh-connect">Connect my GitHub</button>
-          <span id="gh-note">A GitHub page opens. Sign in, then type the code shown here.
-            No account yet? <a href="#" id="gh-signup">Create one first</a>, then click Connect.</span>
+          <span id="gh-note">A GitHub page opens. Sign in, then type the code shown here.</span>
           <div id="gh-code" hidden>Your code: <code id="gh-code-value" style="font-size:22px;letter-spacing:.08em"></code></div></li>
         <li><button class="step" id="gh-backup" disabled>Back up my assistant</button>
           <span id="gh-backup-note">Makes a private copy only you can see. Your Roofr token is never included.</span></li>
       </ol>
+    </section>
+    <div class="nav"><button class="go quiet back" data-go="8">Back</button><button class="go next" id="gh-next" data-go="10" disabled>Next</button></div>
+  </div>
+
+  <div class="page" data-page="10" hidden>
+    <div class="hero">
+      <div class="orb" aria-hidden="true">\u2713</div>
+      <h1>You are all set</h1>
+    </div>
+    <p class="lede"><span class="the-name">Jarvis</span> is ready. Open Claude, pick your folder, and type <code>/start</code>.</p>
+    <details class="what">
+      <summary>Where to find things later</summary>
+      <ul class="done" style="margin-top:12px">
+        <li><b>START-HERE.md</b> in your folder lists every command and things to try.</li>
+        <li>Run the install file again any time to get updates. Your notes are kept.</li>
+        <li>Stuck? Type "I'm stuck" in a chat, or send Travis a screenshot.</li>
+      </ul>
     </details>
-    <div class="nav"><button class="go quiet back" data-go="7">Back</button><button class="go" id="finish">I'm done</button></div>
+    <div class="nav"><button class="go quiet back" data-go="9">Back</button><button class="go" id="finish">I'm done</button></div>
     <p class="hint" id="finish-note" style="text-align:center;margin-top:12px"></p>
   </div>
 </main>
@@ -439,9 +455,12 @@ const chosenName = () => ($('name').value === '__custom' ? $('custom').value.tri
 let page = 1
 function show(n) {
   page = n
+  if (n === 7) setTimeout(() => $('drill').focus(), 60)
+  if (n === 8) post('/connectors/status').then(showConnectors)
+  if (n === 9) post('/github/status').then(showGithub)
   for (const el of document.querySelectorAll('.page')) el.hidden = Number(el.dataset.page) !== n
-  $('progress').textContent = n <= 3 ? `Step ${n} of 3` : `Almost there: ${n - 3} of 5`
-  const total = n <= 3 ? 3 : 5, at = n <= 3 ? n : n - 3
+  $('progress').textContent = n <= 3 ? `Step ${n} of 3` : `Almost there: ${n - 3} of 7`
+  const total = n <= 3 ? 3 : 7, at = n <= 3 ? n : n - 3
   $('bar').replaceChildren(...Array.from({ length: total }, (_, i) =>
     Object.assign(document.createElement('i'), { className: i < at ? 'on' : '' })))
   window.scrollTo(0, 0)
@@ -625,13 +644,16 @@ const post = async (path, data = {}) => (await fetch(path, {
 function showGithub(s) {
   $('gh-missing').hidden = s.installed
   $('gh-steps').hidden = !s.installed
+  if (!s.installed) $('gh-next').disabled = false  // nothing they can do here; do not trap them
   if (s.state === 'connected') {
     $('gh-connect').classList.add('done')
-    $('gh-connect').textContent = `✓ Connected as ${s.user}`
+    $('gh-connect').textContent = `\u2713 Connected as ${s.user}`
     $('gh-connect').disabled = true
     $('gh-note').hidden = true
     $('gh-code').hidden = true
     $('gh-backup').disabled = false
+    $('gh-next').disabled = false
+    $('gh-have').setAttribute('aria-pressed', 'true')
   } else if (s.state === 'waiting') {
     $('gh-code').hidden = !s.code
     $('gh-code-value').textContent = s.code
@@ -644,7 +666,78 @@ function showGithub(s) {
   }
 }
 $('gh-connect').onclick = async () => showGithub(await post('/github/connect'))
-$('gh-signup').onclick = event => { event.preventDefault(); post('/chrome', { page: 'github-signup' }) }
+$('gh-have').onclick = () => { $('gh-have').setAttribute('aria-pressed', 'true'); $('gh-signup').setAttribute('aria-pressed', 'false') }
+$('gh-signup').onclick = () => {
+  $('gh-signup').setAttribute('aria-pressed', 'true'); $('gh-have').setAttribute('aria-pressed', 'false')
+  $('gh-signup-note').hidden = false
+  post('/chrome', { page: 'github-signup' })
+}
+
+// The four commands, typed once each.
+const DRILL = [
+  ['/start', n => `Begins your day. ${n} reads its notes and tells you where things stand.`],
+  ['/save', n => `Ends your session. ${n} writes down what you did, so tomorrow picks up from here.`],
+  ['/compact', n => `For when a chat gets long. It shrinks the chat to a summary so ${n} stays quick and keeps going.`],
+  ['/clear', () => 'Wipes this chat for a fresh start. Run /save first if you want it remembered.'],
+]
+let drillAt = 0
+function askDrill() {
+  const done = drillAt >= DRILL.length
+  $('drill').hidden = done
+  $('drill-hint').textContent = done ? '' : 'Start with the slash.'
+  $('drill-next').disabled = !done
+  if (done) {
+    $('drill-ask').textContent = 'That is all four. You will use /start and /save every day.'
+    return
+  }
+  $('drill-ask').innerHTML = `Type <code>${DRILL[drillAt][0]}</code> and press Enter`
+  $('drill').placeholder = DRILL[drillAt][0]
+  $('drill').value = ''
+}
+$('drill').onkeydown = event => {
+  if (event.key !== 'Enter') return
+  const typed = $('drill').value.trim().toLowerCase()
+  const [command, explain] = DRILL[drillAt]
+  if (typed !== command) {
+    $('drill-hint').textContent = typed.replace(/^\//, '') === command.slice(1)
+      ? 'Close. Put the slash in front, with no space.'
+      : `Not quite. Type ${command} exactly.`
+    return
+  }
+  const said = Object.assign(document.createElement('div'), { className: 'said', textContent: command })
+  const reply = document.createElement('div')
+  reply.className = 'reply'
+  reply.append(Object.assign(document.createElement('b'), { textContent: '\u2713 ' }), explain(result ? result.assistant : chosenName()))
+  $('drill-log').append(said, reply)
+  drillAt += 1
+  askDrill()
+}
+askDrill()
+
+// Connectors: open the page for them, then watch for each one to connect.
+let connTimer
+function showConnectors(c) {
+  let on = 0
+  for (const row of $('conn-list').children) {
+    const yes = (c.connected || []).includes(row.dataset.conn)
+    row.classList.toggle('on', yes)
+    if (yes) on += 1
+  }
+  $('conn-note').textContent = c.state === 'unknown'
+    ? 'Setup cannot see your connectors from here, so there are no ticks. If the page shows "Connected" for all three, you are done.'
+    : on === 3 ? 'All three are connected.' : c.checking ? 'Checking…' : 'Each one gets a tick here once it is connected.'
+  clearTimeout(connTimer)
+  if (page === 8 && on < 3 && c.state !== 'unknown') {
+    connTimer = setTimeout(async () => showConnectors(await post('/connectors/status')), 6000)
+  }
+}
+$('conn-open').onclick = async () => {
+  await post('/chrome', { page: 'connectors' })
+  $('conn-open').classList.add('done')
+  showConnectors(await post('/connectors/status'))
+}
+$('conn-check').onclick = async () => showConnectors(await post('/connectors/status', { fresh: true }))
+
 $('gh-backup').onclick = async () => {
   $('gh-backup').disabled = true
   $('gh-backup').textContent = 'Backing up…'
@@ -683,7 +776,7 @@ $('finish').onclick = async () => {
   await fetch('/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
   $('finish').disabled = true
   $('finish-note').textContent = 'Setup is finished. You can close this tab and the setup window.'
-  for (const el of document.querySelectorAll('.page[data-page="8"] .back')) el.disabled = true
+  for (const el of document.querySelectorAll('.page[data-page="10"] .back')) el.disabled = true
 }
 
 load().then(() => show(1))
