@@ -54,8 +54,7 @@ if [ -d "/Applications/Claude.app" ] || [ -d "$HOME/Applications/Claude.app" ]; 
 elif command -v brew >/dev/null 2>&1 && brew install --cask claude >/dev/null 2>&1; then
   ok "installed"
 else
-  note "Opening the download page. Install the Claude app from there, then come back."
-  open "https://claude.ai/download" || true
+  note "Not here yet. The setup page installs it for you in a moment."
 fi
 
 step "Node.js and Google Chrome"

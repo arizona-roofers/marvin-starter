@@ -721,6 +721,7 @@ CHROME_PAGES = {
     "claude": "https://claude.ai/login",
     "github-device": "https://github.com/login/device",
     "github-signup": "https://github.com/signup",
+    "claude-download": "https://claude.ai/download",
 }
 
 
@@ -915,6 +916,90 @@ def open_claude():
     return False
 
 
+# --- The Claude desktop app: is it here, and get it if not -------------------------
+
+# Anthropic's own "latest" links; each answers with a redirect to the current installer.
+CLAUDE_APP_URL = {
+    "mac": "https://claude.ai/api/desktop/darwin/universal/dmg/latest/redirect",
+    "win": "https://claude.ai/api/desktop/win32/x64/setup/latest/redirect",
+    "win-arm": "https://claude.ai/api/desktop/win32/arm64/setup/latest/redirect",
+}
+CLAUDE_APP = {"state": "unknown", "error": ""}
+
+
+def claude_app_installed():
+    if IS_MAC:
+        return any((base / "Claude.app").exists() for base in (Path("/Applications"), Path.home() / "Applications"))
+    if IS_WINDOWS:
+        local = Path(os.environ.get("LOCALAPPDATA", ""))
+        return (local / "AnthropicClaude" / "claude.exe").exists() or bool(list(
+            (local / "Microsoft" / "WindowsApps").glob("Claude*")))
+    return False
+
+
+def _download(url, dest):
+    import urllib.request
+    request = urllib.request.Request(url, headers={"User-Agent": "assistant-setup"})
+    with urllib.request.urlopen(request, timeout=120) as reply, open(dest, "wb") as out:
+        shutil.copyfileobj(reply, out)
+
+
+def _install_claude_app():
+    import tempfile
+    work = Path(tempfile.mkdtemp(prefix="claude-app-"))
+    try:
+        if IS_MAC:
+            dmg = work / "Claude.dmg"
+            _download(CLAUDE_APP_URL["mac"], dmg)
+            mount = work / "mount"
+            mount.mkdir()
+            subprocess.run(["hdiutil", "attach", str(dmg), "-nobrowse", "-quiet", "-mountpoint", str(mount)], check=True)
+            try:
+                source = next(mount.glob("*.app"))
+                target = Path("/Applications")
+                if not os.access(str(target), os.W_OK):
+                    target = Path.home() / "Applications"
+                    target.mkdir(exist_ok=True)
+                subprocess.run(["ditto", str(source), str(target / source.name)], check=True)
+            finally:
+                subprocess.run(["hdiutil", "detach", str(mount), "-quiet"], check=False)
+        elif IS_WINDOWS:
+            import platform
+            setup = work / "Claude-Setup.exe"
+            _download(CLAUDE_APP_URL["win-arm" if "ARM" in platform.machine().upper() else "win"], setup)
+            subprocess.run([str(setup)], check=False, timeout=900)
+        else:
+            raise OSError("no desktop app for this system")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def ensure_claude_app():
+    """Start getting the Claude app in the background if this computer lacks it."""
+    if claude_app_installed():
+        CLAUDE_APP.update(state="installed", error="")
+        return
+    if CLAUDE_APP["state"] == "installing":
+        return
+    CLAUDE_APP.update(state="installing", error="")
+
+    def work():
+        try:
+            _install_claude_app()
+        except Exception as error:  # shown on the page with a manual way out
+            CLAUDE_APP["error"] = f"{type(error).__name__}: {error}"[:200]
+        CLAUDE_APP["state"] = "installed" if claude_app_installed() else "failed"
+
+    threading.Thread(target=work, daemon=True).start()
+
+
+def claude_app_status():
+    if CLAUDE_APP["state"] != "installing":
+        CLAUDE_APP["state"] = "installed" if claude_app_installed() else (
+            "failed" if CLAUDE_APP["state"] == "failed" else "missing")
+    return dict(CLAUDE_APP, ok=True, system="mac" if IS_MAC else "windows" if IS_WINDOWS else "other")
+
+
 PAGE = (Path(__file__).resolve().parent / "wizard.html")
 
 
@@ -977,10 +1062,12 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as error:  # the page shows it to the person
                 self.send({"ok": False, "error": f"{type(error).__name__}: {error}"})
         elif self.path == "/open":
-            folder = body.get("folder") or ""
-            if Path(folder).is_dir():
-                open_folder(folder)
             self.send({"ok": True, "claude": open_claude()})
+        elif self.path == "/app/status":
+            self.send(claude_app_status())
+        elif self.path == "/app/install":
+            ensure_claude_app()
+            self.send(claude_app_status())
         elif self.path == "/chrome":
             self.send({"ok": body.get("page") in CHROME_PAGES, "chrome": open_in_chrome(body.get("page"))})
         elif self.path == "/github/connect":
@@ -1010,6 +1097,8 @@ def main():
         print("\n".join(result["log"]))
         return
 
+    if not os.environ.get("ASSISTANT_SKIP_APP"):
+        ensure_claude_app()  # under way while the person fills in the page
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"\n  Setup is open in your browser: {url}\n  Leave this window open until setup says it is done.\n", flush=True)

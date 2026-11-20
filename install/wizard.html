@@ -60,6 +60,10 @@
     display: block; margin: 0 0 6px; padding: 9px 14px; font: inherit; font-weight: 700; cursor: pointer;
     color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 9px;
   }
+  button.copy {
+    margin-left: 8px; padding: 2px 10px; font: inherit; font-size: 13px; cursor: pointer;
+    color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 7px;
+  }
   button.step[disabled]:not(.done) { opacity: .45; cursor: default; }
   button.step.done { background: transparent; color: var(--ok); border: 1px solid var(--line); }
   table.cmds { border-collapse: collapse; width: 100%; }
@@ -138,7 +142,8 @@
       <h2>Start your first chat</h2>
       <ol class="next">
         <li>Open the <b>Claude</b> app and sign in with your work email.</li>
-        <li>Click the <b>Code</b> tab, then choose this folder:<br><span class="path" id="done-folder"></span></li>
+        <li>Click the <b>Code</b> tab, then <b>Select folder</b> and choose this one:<br><span class="path" id="done-folder"></span>
+          <button type="button" class="copy" id="copy-folder">Copy</button></li>
         <li>Type <b>/start</b> and press Enter.</li>
       </ol>
     </section>
@@ -153,7 +158,7 @@
       </table>
       <p class="hint">Everything else is plain English. The full list is in <b>START-HERE.md</b> in your folder.</p>
     </section>
-    <button class="go" id="open">Open Claude and the folder</button>
+    <button class="go" id="open" disabled>Checking for the Claude app…</button>
     <p class="hint" id="open-note" style="text-align:center;margin:12px 0 24px"></p>
 
     <section>
@@ -253,6 +258,7 @@ $('go').onclick = async () => {
     $('form').hidden = true
     $('finished').hidden = false
     post('/github/status').then(showGithub)
+    post('/app/status').then(showApp)
     window.scrollTo(0, 0)
   } catch (error) {
     $('error').textContent = `${error.message} Nothing is broken: fix it and click again, or send Travis a screenshot.`
@@ -262,13 +268,43 @@ $('go').onclick = async () => {
   }
 }
 
+// The one big button: get the Claude app if it is missing, then open it.
+let appState = 'unknown'
+function showApp(status) {
+  appState = status.state
+  const where = status.system === 'mac' ? 'your Applications folder' : 'your Start menu'
+  const open = $('open')
+  if (status.state === 'installed') {
+    open.disabled = false
+    open.textContent = 'Open Claude'
+    if (!$('open-note').dataset.opened) $('open-note').textContent = 'Then follow the three steps above.'
+  } else if (status.state === 'installing') {
+    open.disabled = true
+    open.textContent = 'Getting the Claude app…'
+    $('open-note').textContent = 'This takes a minute or two. The button turns into "Open Claude" when it is ready.'
+    setTimeout(async () => showApp(await post('/app/status')), 3000)
+  } else {
+    open.disabled = false
+    open.textContent = status.state === 'failed' ? 'Download Claude' : 'Install Claude'
+    $('open-note').textContent = status.state === 'failed'
+      ? `Setup could not install it by itself. This opens the download page: install it, then find Claude in ${where}.`
+      : 'The Claude app is not on this computer yet. One click installs it.'
+  }
+}
+
 $('open').onclick = async () => {
-  const opened = await (await fetch('/open', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: result.folder }),
-  })).json()
-  $('open-note').textContent = opened.claude
-    ? 'Claude is opening. Come back here for the Chrome steps.'
-    : 'The folder is open. Claude did not start by itself: open it from your Start menu or Applications.'
+  if (appState === 'installed') {
+    const opened = await post('/open')
+    $('open-note').dataset.opened = '1'
+    $('open-note').textContent = opened.claude
+      ? 'Claude is opening. Follow the three steps above, then come back here for Chrome.'
+      : 'Claude did not open by itself. Find it in your Applications folder or Start menu.'
+  } else if (appState === 'failed') {
+    await post('/chrome', { page: 'claude-download' })
+    showApp(await post('/app/status'))
+  } else {
+    showApp(await post('/app/install'))
+  }
 }
 
 const post = async (path, data = {}) => (await fetch(path, {
@@ -320,6 +356,15 @@ for (const button of document.querySelectorAll('button.step[data-page]')) {
     })
     button.classList.add('done')
     button.textContent = '✓ ' + button.textContent.replace(/^✓ /, '')
+  }
+}
+
+$('copy-folder').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(result.folder)
+    $('copy-folder').textContent = 'Copied'
+  } catch (error) {
+    $('copy-folder').textContent = 'Select it and copy'
   }
 }
 

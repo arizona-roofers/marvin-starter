@@ -57,3 +57,18 @@ jobs:
       - name: Check the second run kept everything
         shell: bash
         run: python3 install/check-install.py again || python install/check-install.py again
+
+      - name: The setup page can install the Claude app by itself (Mac)
+        if: runner.os == 'macOS'
+        run: |
+          rm -rf /Applications/Claude.app "$HOME/Applications/Claude.app"
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0, "install")
+          import wizard
+          assert not wizard.claude_app_installed(), "app should be gone before the test"
+          wizard._install_claude_app()
+          assert wizard.claude_app_installed(), "app was not installed"
+          print("Claude app installed by the setup page's own installer")
+          PY
+          ls -d /Applications/Claude.app
