@@ -25,7 +25,7 @@ The token is `ROOFR_EXTERNAL_TOKEN` in the workspace `.env` file.
 | `/health` | Liveness check, no auth |
 | `/schema` | Column reference and endpoint list. Call this when unsure of a field. |
 | `/summary` | Server-side totals, close rates, and breakdowns by category, workflow, owner and lead source |
-| `/jobs` | Paginated job list. Filters: `from`, `to` (YYYY-MM-DD), `stage`, `stage_category`, `workflow`, `owner`. `format=json` or `csv`. Max 1000 rows a page. |
+| `/jobs` | Paginated job list. Filters: `from`, `to`, `closed_from`, `closed_to` (YYYY-MM-DD), `stage`, `stage_category`, `workflow`, `owner`. `format=json` or `csv`. Max 1000 rows a page. |
 | `/job/<id>` | One job by its Roofr ID |
 
 ## Which one to call
@@ -35,6 +35,21 @@ The token is `ROOFR_EXTERNAL_TOKEN` in the workspace `.env` file.
 3. For a spreadsheet, use `/jobs?format=csv` with a tight date range.
 4. Page with `next_offset` until it is null.
 5. Never loop `/job/<id>` over many jobs. Use `/jobs` with filters.
+
+## Two kinds of date
+
+- `from` and `to` go by the day a job was **created**. Use them for leads and new jobs.
+- `closed_from` and `closed_to` go by the day a job **closed**, in Arizona time. Use them
+  for sales: "what did we sell today" is
+  `/jobs?stage_category=won&closed_from=<today>&closed_to=<today>`, and `/summary` takes
+  the same two for totals. A job is usually sold days or months after it was created, so
+  `from`/`to` give the wrong answer to a sales question.
+- Report Retail and Insurance separately (`workflow`). An insurance job reaching a won
+  stage is often an old claim moving forward, not a fresh sale.
+- Check the answer: every row's `close_date` must fall in the days you asked for. If it
+  does not, the filter was not applied; say so, do not report the rows as that day's sales.
+- The data is a copy of Roofr that refreshes every few minutes, so a sale from the last
+  few minutes may be missing.
 
 ## Limits
 
