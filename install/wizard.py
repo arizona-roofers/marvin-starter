@@ -11,6 +11,7 @@ Standard library only, and it runs on the Python 3.9 that ships with macOS.
     python wizard.py --answers a.json   no page: apply a saved set of answers
 """
 import argparse
+import contextlib
 import base64
 import datetime
 import io
@@ -645,7 +646,7 @@ def desktop_folder():
 def write_shortcut(name, workspace, log, main="claude"):
     desktop = desktop_folder()
     if desktop is None:
-        log.append("No Desktop folder was found, so no shortcut was made. Open the folder from the Claude app instead.")
+        log.append("No Desktop folder was found, so no shortcut was made. Use the folder's own \"Open\" file, or pick the folder in your agent's app.")
         return
     if IS_WINDOWS:
         shortcut = desktop / f"{name}.cmd"
@@ -759,7 +760,7 @@ def configure(a):
     try:
         write_shortcut(name, workspace, log, main)
     except OSError:
-        log.append("The desktop shortcut could not be made. Open the folder from the Claude app instead.")
+        log.append("The desktop shortcut could not be made. Pick the folder in your agent's app instead.")
 
     if with_claude and a.get("chrome", True) and not os.environ.get("ASSISTANT_SKIP_CHROME"):
         offer_extension(log)
@@ -1465,7 +1466,11 @@ def run_installs(blocking=False, claude=True):
                 _mark(step_id, "done", "already here")
                 return
             _mark(step_id, "working")
-            worked, note = get()
+            # One installer at a time, whoever asked: each adds itself to the PATH, and two
+            # at once can undo each other. Apple's developer tools are the exception: they
+            # wait many minutes on a click, and must not hold everything else up.
+            with (contextlib.nullcontext() if IS_MAC and step_id == "git" else QUEUE_LOCK):
+                worked, note = get()
             refresh_path()
             _mark(step_id, "done" if have() else "failed", "" if have() else (note or "could not be installed"))
         except Exception as error:
@@ -1474,10 +1479,6 @@ def run_installs(blocking=False, claude=True):
     def queue(steps):
         for step in steps:
             one(step)
-
-    def in_turn(steps):  # a second call waits for the first: two installers at once trip each other
-        with QUEUE_LOCK:
-            queue(steps)
 
     # Apple's developer tools take many minutes and wait on a click, so they run on their own.
     slow = [step for step in plan if IS_MAC and step[0] == "git"]
@@ -1488,7 +1489,7 @@ def run_installs(blocking=False, claude=True):
             if os.environ.get("CI"):
                 _mark(step[0], "done" if step[2]() else "failed", "")
         return
-    threading.Thread(target=in_turn, args=(fast,), daemon=True).start()
+    threading.Thread(target=queue, args=(fast,), daemon=True).start()
     if slow:
         threading.Thread(target=queue, args=(slow,), daemon=True).start()
 
@@ -1542,7 +1543,7 @@ EXTRAS = {
     },
 }
 EXTRA_JOBS = {}
-ONE_AT_A_TIME = threading.Lock()  # each installer adds itself to the PATH; two at once can undo each other
+ONE_AT_A_TIME = QUEUE_LOCK  # the same turn-taking as the installs above
 
 
 def _default_tools():
@@ -1743,10 +1744,12 @@ def write_codex_settings(workspace, never_asks, log):
         top = [f'{key} = "{value}"{OURS}' for key, value in wanted.items() if key not in theirs] + top
     # Codex records a trusted folder under its path, lower-cased on Windows, in single quotes.
     folder = str(workspace).lower() if IS_WINDOWS else str(workspace)
-    if "'" not in folder and "\n" not in folder:
-        header = f"[projects.'{folder}']"
-        if header.lower() not in "\n".join(rest).lower():
-            rest += ["", header, 'trust_level = "trusted"']
+    literal = f"[projects.'{folder}']"
+    escaped = '[projects."' + folder.replace("\\", "\\\\").replace('"', '\\"') + '"]'
+    existing = "\n".join(rest).lower()
+    if "\n" not in folder and literal.lower() not in existing and escaped.lower() not in existing:
+        # A single-quoted key cannot hold an apostrophe (O'Brien), so that path is written escaped.
+        rest += ["", escaped if "'" in folder else literal, 'trust_level = "trusted"']
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(top + rest).strip("\n") + "\n", encoding="utf-8")
 
@@ -1901,7 +1904,8 @@ class Handler(BaseHTTPRequestHandler):
                                signedIn=DETECTED.get(row["id"], {}).get("signedIn"), canMain=row["id"] in MAINS,
                                on=row["on"] or bool(DETECTED.get(row["id"], {}).get("installed")) or row["id"] == default_main())
                           for row in [{"id": "claude", "label": "Claude", "maker": "Anthropic's assistant, in the Claude desktop app",
-                                       "account": "your work Claude account", "on": False}]
+                                       "account": "your work Claude account",
+                                       "on": "claude" in _install_setting("ASSISTANT_DEFAULT_TOOLS", "A-Za-z,").lower().split(",")}]
                           + [{"id": t, "label": s["label"], "maker": s["maker"] + ", " + s.get("where", "in the terminal"),
                               "account": s["account"], "on": t in DEFAULT_TOOLS} for t, s in EXTRAS.items()]],
             })
@@ -1939,6 +1943,10 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/connectors/status":
             self.send(connectors_status(bool(body.get("fresh"))))
         elif self.path == "/installs/status":
+            self.send(installs_status())
+        elif self.path == "/installs/start":  # the person said they use Claude: fetch its pieces now
+            if body.get("claude") is True and not os.environ.get("ASSISTANT_SKIP_INSTALLS"):
+                run_installs(claude=True)
             self.send(installs_status())
         elif self.path == "/account/status":
             self.send(claude_account())
@@ -1989,9 +1997,9 @@ def main():
 
     detect()  # before anything is installed: what the person already uses
     if not os.environ.get("ASSISTANT_SKIP_INSTALLS"):
-        # Under way while the person fills in the page. Claude's pieces wait for the choice
-        # when this person looks like they use something else.
-        run_installs(claude=default_main() == "claude")
+        # The common pieces get under way while the person fills in the page. Claude's wait
+        # for the first question, which agents they use: the page then calls /installs/start.
+        run_installs(claude=False)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"\n  Setup is open in your browser: {url}\n  Leave this window open until setup says it is done.\n", flush=True)

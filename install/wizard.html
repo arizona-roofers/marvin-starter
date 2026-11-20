@@ -204,22 +204,36 @@
   .intro .lede { margin-bottom: 0; }
   .intro .orb.big { animation: pop .7s cubic-bezier(.2, 1.5, .4, 1) both, breathe 6s ease-in-out .7s infinite alternate; }
   .kicker { margin: 22px 0 6px; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
-  .stage { display: grid; gap: 10px; margin: 22px 0 22px; text-align: left; }
-  .slide {
-    display: grid; grid-template-columns: 1fr; gap: 2px; padding: 12px 16px; border-radius: 14px;
-    background: var(--glass); border: 1px solid var(--edge); border-left: 3px solid var(--accent);
+  .stage { display: grid; gap: 8px; margin: 22px 0 22px; text-align: left; }
+  /* One row per difference: what a regular LLM does on the left, then what yours does on the right. */
+  .versus { display: grid; grid-template-columns: 5fr 7fr; gap: 8px; }
+  .versus > div {
+    display: flex; gap: 10px; align-items: flex-start; padding: 11px 14px; border-radius: 14px;
+    background: var(--glass); border: 1px solid var(--edge);
     -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
-    opacity: 0; transform: translateY(10px);
-    animation: rise .4s cubic-bezier(.2, .7, .2, 1) forwards; animation-delay: calc(var(--i) * .55s + .35s);
+    opacity: 0; transform: translateY(10px); animation: rise .4s cubic-bezier(.2, .7, .2, 1) forwards;
   }
   @keyframes rise { to { opacity: 1; transform: none; } }
-  .slide p { margin: 0; }
-  .slide .old { color: var(--soft); font-size: 13.500px; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--soft) 70%, transparent); }
-  .slide .new { font-size: 21px; font-weight: 760; letter-spacing: -.015em; color: var(--accent); line-height: 1.2; }
-  .slide .sub { color: var(--ink); font-size: 15px; opacity: .88; }
+  .versus .plain { color: var(--soft); font-size: 14.5px; animation-delay: calc(var(--i) * .95s + .35s); }
+  .versus .yours { border-color: var(--accent); font-size: 14.5px; animation-delay: calc(var(--i) * .95s + .8s); }
+  .versus .yours b { display: block; font-size: 18px; font-weight: 760; letter-spacing: -.01em; color: var(--accent); line-height: 1.25; }
+  .versus .mark { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 11px; font-weight: 700; margin-top: 1px; border: 1px solid currentColor; opacity: .7; }
+  .versus .yours .mark { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); opacity: 1; }
+  .versus .who { display: none; }
+  .versus.head > div { background: none; border-color: transparent; padding: 0 14px 0 44px; opacity: 1; transform: none; animation: none;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    font-size: 12px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; }
+  .versus.head .yours { color: var(--accent); }
+  @media (max-width: 520px) {
+    .versus { grid-template-columns: 1fr; gap: 4px; margin-bottom: 6px; }
+    .versus.head { display: none; }
+    .versus .who { display: inline; }
+    .versus .plain .who { font-weight: 700; }
+  }
   .dots { display: none; }
   .intro .go { max-width: 320px; margin: 0 auto; display: block; }
-  .static .slide { animation: none; opacity: 1; transform: none; }
+  .static .versus > div { animation: none; opacity: 1; transform: none; }
   .dock { position: fixed; right: 18px; bottom: 18px; z-index: 5; width: min(340px, calc(100vw - 36px));
     background: var(--glass); border: 1px solid var(--edge); border-radius: 18px; overflow: hidden;
     -webkit-backdrop-filter: blur(24px) saturate(1.3); backdrop-filter: blur(24px) saturate(1.3);
@@ -309,22 +323,52 @@
       <div class="orb big" aria-hidden="true">&#10022;</div>
       <p class="kicker">Arizona Roofers</p>
       <h1>Your own AI assistant</h1>
-      <p class="lede">It is Claude, set up for your job.</p>
+      <p class="lede">An LLM such as Claude, ChatGPT or Gemini, set up for your job.</p>
       <div class="stage" id="stage">
-        <div class="slide"><p class="old">Regular Claude starts every chat from zero.</p>
-          <p class="new">Yours remembers.</p><p class="sub">It keeps notes on your work and picks up where you left off, even days later.</p></div>
-        <div class="slide"><p class="old">Regular Claude knows nothing about our company.</p>
-          <p class="new">Yours knows Arizona Roofers.</p><p class="sub">The booking rules, the call scripts, the tools, and who to ask.</p></div>
-        <div class="slide"><p class="old">Regular Claude only knows what you paste in.</p>
-          <p class="new">Yours looks things up.</p><p class="sub">Jobs in Roofr, phone calls, your email and your calendar.</p></div>
-        <div class="slide"><p class="old">Regular Claude tells you what to click.</p>
-          <p class="new">Yours does the clicking.</p><p class="sub">It makes the change in Roofr for you, in your own sign-in, after you say yes.</p></div>
-        <div class="slide"><p class="old">Regular Claude stays on the screen you opened it on.</p>
-          <p class="new">Yours goes with you.</p><p class="sub">Start something at your desk and check on it from your phone.</p></div>
+        <div class="versus head">
+          <div class="plain">A regular LLM</div>
+          <div class="yours">Your assistant</div>
+        </div>
+        <div class="versus">
+          <div class="plain"><span class="mark" aria-hidden="true">&#10005;</span><span><span class="who">A regular LLM </span>Starts every chat from zero.</span></div>
+          <div class="yours"><span class="mark" aria-hidden="true">&#10003;</span><span><b><span class="who">Yours </span>Remembers.</b>It keeps notes on your work and picks up where you left off, even days later.</span></div>
+        </div>
+        <div class="versus">
+          <div class="plain"><span class="mark" aria-hidden="true">&#10005;</span><span><span class="who">A regular LLM </span>Knows nothing about our company.</span></div>
+          <div class="yours"><span class="mark" aria-hidden="true">&#10003;</span><span><b><span class="who">Yours </span>Knows Arizona Roofers.</b>The booking rules, the call scripts, the tools, and who to ask.</span></div>
+        </div>
+        <div class="versus">
+          <div class="plain"><span class="mark" aria-hidden="true">&#10005;</span><span><span class="who">A regular LLM </span>Only knows what you paste in.</span></div>
+          <div class="yours"><span class="mark" aria-hidden="true">&#10003;</span><span><b><span class="who">Yours </span>Looks things up.</b>Jobs in Roofr, phone calls, your email and your calendar.</span></div>
+        </div>
+        <div class="versus">
+          <div class="plain"><span class="mark" aria-hidden="true">&#10005;</span><span><span class="who">A regular LLM </span>Tells you what to click.</span></div>
+          <div class="yours"><span class="mark" aria-hidden="true">&#10003;</span><span><b><span class="who">Yours </span>Does the clicking.</b>It makes the change in Roofr for you, in your own sign-in, after you say yes.</span></div>
+        </div>
+        <div class="versus">
+          <div class="plain"><span class="mark" aria-hidden="true">&#10005;</span><span><span class="who">A regular LLM </span>Stays on the screen you opened it on.</span></div>
+          <div class="yours"><span class="mark" aria-hidden="true">&#10003;</span><span><b><span class="who">Yours </span>Goes with you.</b>Start something at your desk and check on it from your phone.</span></div>
+        </div>
       </div>
-      <button class="go" id="begin" data-go="1" disabled>Get started</button>
+      <button class="go" id="begin" data-go="0.5" disabled>Get started</button>
       <p class="hint" id="begin-note" style="text-align:center;margin-top:12px">&nbsp;</p>
     </div>
+  </div>
+
+  <div class="page" data-page="0.5" hidden>
+    <h1>What is your primary agent?</h1>
+    <p class="lede">The one you use most. Setup is built around it: its app, signing in, and a shortcut on your desktop.</p>
+    <section>
+      <div id="main-list"></div>
+    </section>
+    <section>
+      <h2>What others do you use?</h2>
+      <p class="hint" style="margin:0 0 6px">They work beside your primary agent, in the same folder, reading the same notes. Ticked ones were found on this computer or are suggested by your company.</p>
+      <div id="tool-list"></div>
+      <label class="check" id="extras-bypass-row" hidden><input type="checkbox" id="extras-bypass" checked>
+        <span><b>The others never stop to ask</b>The same as Bypass for your primary agent, which you choose on a later page. Untick it to have them ask before they change files or run commands.</span></label>
+    </section>
+    <div class="nav"><button class="go quiet back" data-go="0">Back</button><button class="go next" data-go="1">Next</button></div>
   </div>
 
   <div class="page" data-page="1" hidden>
@@ -348,7 +392,7 @@
       <div class="voices" id="style-cards" role="group" aria-labelledby="style-label"></div>
       <select id="style" hidden></select>
     </section>
-    <div class="nav"><button class="go quiet back" data-go="0">Back</button><button class="go next" data-go="2">Next</button></div>
+    <div class="nav"><button class="go quiet back" data-go="0.5">Back</button><button class="go next" data-go="2">Next</button></div>
   </div>
 
   <div class="page" data-page="2" hidden>
@@ -365,22 +409,7 @@
       <input type="text" id="roofr" maxlength="60" placeholder="First and last name">
       <p class="hint">With this, "show me my jobs" works from day one.</p>
     </section>
-    <div class="nav"><button class="go quiet back" data-go="1">Back</button><button class="go next" data-go="2.5">Next</button></div>
-  </div>
-
-  <div class="page" data-page="2.5" hidden>
-    <h1>Which assistants do you use?</h1>
-    <p class="lede">Ticked ones are what setup found on this computer, plus any your company suggests. They all work in the same folder, reading the same notes.</p>
-    <section>
-      <div id="tool-list"></div>
-      <label for="main">Your main assistant</label>
-      <select id="main"></select>
-      <p class="hint">The rest of setup walks you through this one: its app, signing in, and a shortcut on your desktop.</p>
-      <label class="check" id="extras-bypass-row" hidden><input type="checkbox" id="extras-bypass" checked>
-        <span><b>The others never stop to ask</b>The same as Bypass for your main assistant on the next page. Untick it to have them ask before they change files or run commands.</span></label>
-    </section>
-    <p class="error" id="tools-error" role="alert" hidden>Tick Claude or Codex. For now setup needs one of them as the main assistant; Gemini and Grok work beside it.</p>
-    <div class="nav"><button class="go quiet back" data-go="2">Back</button><button class="go next" id="tools-next" data-go="3">Next</button></div>
+    <div class="nav"><button class="go quiet back" data-go="1">Back</button><button class="go next" data-go="3">Next</button></div>
   </div>
 
   <div class="page" data-page="3" hidden>
@@ -403,7 +432,7 @@
       </div>
     </section>
     <p class="path">Folder: <span id="folder"></span></p>
-    <div class="nav"><button class="go quiet back" data-go="2.5">Back</button><button class="go" id="go">Set up Jarvis</button></div>
+    <div class="nav"><button class="go quiet back" data-go="2">Back</button><button class="go" id="go">Set up Jarvis</button></div>
     <p class="error" id="error" role="alert" hidden></p>
   </div>
 
@@ -624,7 +653,7 @@ const fill = (select, items) => {
 const slug = name => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'assistant'
 const chosenName = () => ($('name').value === '__custom' ? $('custom').value.trim() : $('name').value) || 'Marvin'
 
-// One page at a time. Pages 1, 2, 2.5 and 3 are the choices, 4-7 come after setup has run.
+// One page at a time. Pages 0.5, 1, 2 and 3 are the choices, 4-7 come after setup has run.
 let page = 1
 // The software this computer needs, installing while they go through the screens.
 const SAY = { waiting: 'Waiting its turn', working: 'Installing…', done: 'Installed', failed: 'Not installed' }
@@ -662,19 +691,17 @@ $('dock-head').onclick = () => {
 const done = { chrome: 0, drill: false, connectors: 0, connectorsKnown: false, github: false }
 const doneState = done
 
-// The assistants ticked, and which of them is the main one.
-const pickedTools = () => [...document.querySelectorAll('#tool-list input:checked')].map(box => box.value)
+// The primary agent, and the others ticked beside it.
+const mainTool = () => (document.querySelector('#main-list input:checked') || {}).value || options.main || 'claude'
+const pickedTools = () => [...new Set([mainTool(),
+  ...[...document.querySelectorAll('#tool-list input:checked')].map(box => box.value)])]
 function refreshTools() {
-  const picked = pickedTools()
-  const mains = (options.tools || []).filter(tool => tool.canMain && picked.includes(tool.id))
-  const keep = $('main').value || options.main
-  $('main').replaceChildren(...mains.map(tool => new Option(tool.label, tool.id)))
-  if (mains.some(tool => tool.id === keep)) $('main').value = keep
-  $('extras-bypass-row').hidden = !picked.some(id => id !== 'claude' && id !== $('main').value)
-  $('tools-next').disabled = !mains.length
-  $('tools-error').hidden = mains.length > 0
+  const main = mainTool()
+  // The primary one is not also offered as an "other".
+  for (const row of document.querySelectorAll('#tool-list label')) row.hidden = row.querySelector('input').value === main
+  $('extras-bypass-row').hidden = !pickedTools().some(id => id !== 'claude' && id !== main)
   // Remote control and color modes are Claude's.
-  $('remote').closest('label').hidden = $('tint').closest('label').hidden = !picked.includes('claude')
+  $('remote').closest('label').hidden = $('tint').closest('label').hidden = !pickedTools().includes('claude')
 }
 const codexMain = () => Boolean(result && result.main === 'codex')
 
@@ -752,7 +779,7 @@ function showFinale() {
     const tag = Object.assign(document.createElement('small'), { textContent: 'Click to copy' })
     card.append(tag)
     card.onclick = async () => {
-      try { await navigator.clipboard.writeText(line); tag.textContent = 'Copied. Paste it into Claude.' } catch (error) { tag.textContent = 'Select the text and copy it' }
+      try { await navigator.clipboard.writeText(line); tag.textContent = codexMain() ? 'Copied. Paste it into ChatGPT.' : 'Copied. Paste it into Claude.' } catch (error) { tag.textContent = 'Select the text and copy it' }
     }
     return card
   }))
@@ -766,16 +793,16 @@ function showFinale() {
   }
 }
 
-// The intro: the five differences arrive one after another and stay.
+// The intro: each difference arrives as a pair, the regular LLM first and then yours, and stays.
 let slideTimer
 function startIntro() {
-  const rows = [...$('stage').children]
+  const rows = [...$('stage').querySelectorAll('.versus:not(.head)')]
   rows.forEach((row, i) => row.style.setProperty('--i', String(i)))
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches
   if (still) $('stage').closest('.intro').classList.add('static')
   const ready = () => { $('begin').disabled = false; $('begin-note').textContent = 'About five minutes from here.' }
   if (still) ready()
-  else slideTimer = setTimeout(ready, rows.length * 550 + 700)
+  else slideTimer = setTimeout(ready, rows.length * 950 + 600)
 }
 
 function show(n) {
@@ -786,7 +813,7 @@ function show(n) {
   if (n === 9) post('/github/status').then(showGithub)
   for (const el of document.querySelectorAll('.page')) el.hidden = Number(el.dataset.page) !== n
   $('progress').hidden = $('bar').hidden = n === 0
-  const choices = [1, 2, 2.5, 3]
+  const choices = [0.5, 1, 2, 3]
   const after = codexMain() ? [4.5, 9, 10] : [4, 5, 6, 7, 8, 9, 10]
   $('progress').textContent = n <= 3 ? `Step ${choices.indexOf(n) + 1} of 4` : `Almost there: ${after.indexOf(n) + 1} of ${after.length}`
   const total = n <= 3 ? 4 : after.length, at = (n <= 3 ? choices : after).indexOf(n) + 1
@@ -798,7 +825,12 @@ function show(n) {
 }
 for (const button of document.querySelectorAll('button[data-go]')) {
   // With Codex as the main assistant, the Claude-only pages are skipped: GitHub's Back goes to the ChatGPT page.
-  button.onclick = () => { const to = Number(button.dataset.go); show(codexMain() && to === 8 ? 4.5 : to) }
+  button.onclick = () => {
+    const to = Number(button.dataset.go)
+    // Leaving the first question: if they use Claude, its pieces start installing now.
+    if (page === 0.5 && to === 1 && pickedTools().includes('claude')) post('/installs/start', { claude: true }).then(showInstalls)
+    show(codexMain() && to === 8 ? 4.5 : to)
+  }
 }
 
 function refresh() {
@@ -847,17 +879,21 @@ async function load() {
   for (const el of document.querySelectorAll('.the-contact')) el.textContent = options.contact || 'your manager'
   $('token-row').hidden = options.hasToken
   for (const tool of options.tools || []) {
-    const row = Object.assign(document.createElement('label'), { className: 'check' })
-    const box = Object.assign(document.createElement('input'), { type: 'checkbox', value: tool.id, checked: tool.on })
-    const words = document.createElement('span')
-    words.append(Object.assign(document.createElement('b'), { textContent: tool.label }),
-      `${tool.maker}. Needs ${tool.account}.`
-      + (tool.here ? (tool.signedIn ? ' Already on this computer, and signed in.' : ' Already on this computer.') : ''))
-    row.append(box, words)
-    box.onchange = refreshTools
-    $('tool-list').append(row)
+    const add = (type, list, checked) => {
+      const row = Object.assign(document.createElement('label'), { className: 'check' })
+      const box = Object.assign(document.createElement('input'), { type, value: tool.id, checked })
+      if (type === 'radio') box.name = 'main'
+      const words = document.createElement('span')
+      words.append(Object.assign(document.createElement('b'), { textContent: tool.label }),
+        `${tool.maker}. Needs ${tool.account}.`
+        + (tool.here ? (tool.signedIn ? ' Already on this computer, and signed in.' : ' Already on this computer.') : ''))
+      row.append(box, words)
+      box.onchange = refreshTools
+      list.append(row)
+    }
+    if (tool.canMain) add('radio', $('main-list'), tool.id === options.main)
+    add('checkbox', $('tool-list'), tool.on)
   }
-  $('main').onchange = refreshTools
   refreshTools()
   for (const [name, hex] of Object.entries(options.colors)) {
     const b = document.createElement('button')
@@ -896,7 +932,7 @@ $('go').onclick = async () => {
       body: JSON.stringify({
         assistant: chosenName(), color, style: $('style').value, user: $('user').value, role: $('role').value, roofr: $('roofr').value,
         mode: $('mode').value, remote: $('remote').checked, colors: $('tint').checked, token: $('token').value,
-        tools: pickedTools(), main: $('main').value, extrasBypass: $('extras-bypass').checked,
+        tools: pickedTools(), main: mainTool(), extrasBypass: $('extras-bypass').checked,
       }),
     })
     result = await response.json()
