@@ -369,16 +369,18 @@
   </div>
 
   <div class="page" data-page="2.5" hidden>
-    <h1>Which assistants do you want?</h1>
-    <p class="lede">Claude is the one this setup is built around. The others run in a terminal beside it, in the same folder, reading the same notes.</p>
+    <h1>Which assistants do you use?</h1>
+    <p class="lede">Ticked ones are what setup found on this computer, plus any your company suggests. They all work in the same folder, reading the same notes.</p>
     <section>
-      <label class="check"><input type="checkbox" checked disabled>
-        <span><b>Claude</b>Always included. The app, Chrome, email, calendar and your phone all work through it.</span></label>
       <div id="tool-list"></div>
+      <label for="main">Your main assistant</label>
+      <select id="main"></select>
+      <p class="hint">The rest of setup walks you through this one: its app, signing in, and a shortcut on your desktop.</p>
       <label class="check" id="extras-bypass-row" hidden><input type="checkbox" id="extras-bypass" checked>
-        <span><b>The others never stop to ask</b>The same as Bypass for Claude on the next page. Untick it to have them ask before they change files or run commands.</span></label>
+        <span><b>The others never stop to ask</b>The same as Bypass for your main assistant on the next page. Untick it to have them ask before they change files or run commands.</span></label>
     </section>
-    <div class="nav"><button class="go quiet back" data-go="2">Back</button><button class="go next" data-go="3">Next</button></div>
+    <p class="error" id="tools-error" role="alert" hidden>Tick Claude or Codex. For now setup needs one of them as the main assistant; Gemini and Grok work beside it.</p>
+    <div class="nav"><button class="go quiet back" data-go="2">Back</button><button class="go next" id="tools-next" data-go="3">Next</button></div>
   </div>
 
   <div class="page" data-page="3" hidden>
@@ -430,6 +432,39 @@
       <ul class="done" id="log"></ul>
     </details>
     <div class="nav"><span></span><button class="go next" data-go="5">Next: connect Chrome</button></div>
+  </div>
+
+  <div class="page" data-page="4.5" hidden>
+    <h1><span class="the-name">Jarvis</span> is ready</h1>
+    <p class="lede">Now open ChatGPT and say hello.</p>
+    <section>
+      <h2>Your ChatGPT account</h2>
+      <p id="cx-text" style="margin:0">Checking whether you are already signed in…</p>
+      <button class="step" id="cx-login" style="margin-top:12px" hidden>Sign in to ChatGPT</button>
+    </section>
+    <button class="go" id="cx-open">Open ChatGPT on my folder</button>
+    <p class="hint" id="cx-note" style="text-align:center;margin:12px 0 20px">If the ChatGPT app is not on this computer yet, this opens its installer first.</p>
+    <section>
+      <h2>Once ChatGPT is open</h2>
+      <ol class="next">
+        <li>Sign in if it asks.</li>
+        <li>It should open on your assistant's folder. If it does not, choose <b>Open folder</b> and pick:<br><span class="path the-folder"></span></li>
+        <li>Type <b>$start</b> and press Enter. Your commands are skills here, so they begin with a dollar sign: <b>$start</b>, <b>$save</b>, <b>$update</b>, <b>$help</b>.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>Two things to set up inside ChatGPT</h2>
+      <ul class="done">
+        <li><b>Chrome.</b> In ChatGPT's settings, add its Chrome extension so it can work in web pages such as Roofr.</li>
+        <li><b>Email, calendar and files.</b> Under Plugins, connect Gmail, Google Calendar and Google Drive.</li>
+      </ul>
+      <p class="hint">Setup cannot do these two for you yet.</p>
+    </section>
+    <details class="what">
+      <summary>What was set up</summary>
+      <ul class="done" id="log-codex"></ul>
+    </details>
+    <div class="nav"><span></span><button class="go next" data-go="9">Next: back up to GitHub</button></div>
   </div>
 
   <div class="page" data-page="5" hidden>
@@ -554,12 +589,12 @@
 
     <section>
       <h2>Try one of these first</h2>
-      <p class="hint" style="margin:0 0 12px">Click one to copy it, then paste it into Claude after <code>/start</code>.</p>
+      <p class="hint" id="tries-hint" style="margin:0 0 12px">Click one to copy it, then paste it into Claude after <code>/start</code>.</p>
       <div class="tries" id="tries"></div>
     </section>
 
     <button class="go" id="final-open">Open Claude</button>
-    <p class="hint" style="text-align:center;margin:12px 0 22px">Pick your folder in the <b>Code</b> tab and type <code>/start</code>.</p>
+    <p class="hint" id="final-hint" style="text-align:center;margin:12px 0 22px">Pick your folder in the <b>Code</b> tab and type <code>/start</code>.</p>
 
     <details class="what">
       <summary>Where to find things later</summary>
@@ -629,8 +664,37 @@ $('dock-head').onclick = () => {
 const done = { chrome: 0, drill: false, connectors: 0, connectorsKnown: false, github: false }
 const doneState = done
 
-// The assistants picked beside Claude.
+// The assistants ticked, and which of them is the main one.
 const pickedTools = () => [...document.querySelectorAll('#tool-list input:checked')].map(box => box.value)
+function refreshTools() {
+  const picked = pickedTools()
+  const mains = (options.tools || []).filter(tool => tool.canMain && picked.includes(tool.id))
+  const keep = $('main').value || options.main
+  $('main').replaceChildren(...mains.map(tool => new Option(tool.label, tool.id)))
+  if (mains.some(tool => tool.id === keep)) $('main').value = keep
+  $('extras-bypass-row').hidden = !picked.some(id => id !== 'claude' && id !== $('main').value)
+  $('tools-next').disabled = !mains.length
+  $('tools-error').hidden = mains.length > 0
+  // Remote control and color modes are Claude's.
+  $('remote').closest('label').hidden = $('tint').closest('label').hidden = !picked.includes('claude')
+}
+const codexMain = () => Boolean(result && result.main === 'codex')
+
+// Codex as the main assistant: is it signed in, and open the ChatGPT app on the folder.
+function showCodex(a) {
+  const words = $('cx-text'), button = $('cx-login')
+  button.hidden = true
+  done.codexIn = a.state === 'signed-in'
+  if (a.state === 'signed-in') {
+    words.textContent = '\u2713 Already signed in to ChatGPT on this computer.'
+  } else if (a.state === 'signed-out') {
+    words.textContent = a.waiting ? 'A sign-in page opened in your browser. Finish it there.' : 'You are not signed in to ChatGPT yet.'
+    button.hidden = a.waiting
+  } else {
+    words.textContent = 'Codex is still installing. This checks again by itself.'
+  }
+  if ((a.waiting || a.state === 'no-codex') && page === 4.5) setTimeout(async () => showCodex(await post('/codex/status')), 3000)
+}
 const opened = {}
 async function openTool(tool) {
   const reply = await post('/tool/open', { tool: tool.id, folder: result ? result.folder : '' })
@@ -646,7 +710,17 @@ async function openTool(tool) {
 
 function showFinale() {
   $('final-user').textContent = result && result.user ? `, ${result.user}` : ''
-  const rows = [
+  if (codexMain()) {
+    $('tries-hint').textContent = 'Click one to copy it, then paste it into ChatGPT after $start.'
+    $('final-hint').textContent = 'It opens on your folder. Type $start.'
+    if (!$('final-open').dataset.clicked) $('final-open').textContent = 'Open ChatGPT'
+  }
+  const rows = codexMain() ? [
+    [true, `${result.assistant} is set up`, 'Its folder, notes, company knowledge and Roofr access.', 0],
+    [Boolean(done.codexIn), 'ChatGPT account', done.codexIn ? 'Signed in on this computer.' : 'Not signed in yet.', 4.5],
+    [Boolean(opened.codex), 'The ChatGPT app', opened.codex ? 'Opened on your folder.' : 'Not opened yet.', 4.5],
+    [done.github, 'GitHub backup', done.github ? 'Connected.' : 'Not connected yet.', 9],
+  ] : [
     [true, `${result ? result.assistant : 'Your assistant'} is set up`, 'Its folder, notes, company knowledge and Roofr access.', 0],
     [appState === 'installed', 'The Claude app', appState === 'installed' ? 'On this computer.' : 'Not installed yet.', 4],
     [done.chrome >= 3, 'Chrome', done.chrome >= 3 ? 'Signed in, with Claude added.' : 'Not finished: this is what lets it work in Roofr for you.', 5],
@@ -657,7 +731,7 @@ function showFinale() {
     [done.github, 'GitHub backup', done.github ? 'Connected.' : 'Not connected yet.', 9],
     [Boolean(done.org), 'Arizona Roofers GitHub', done.org ? 'Invitation sent to your work email.' : 'Invitation not sent yet.', 9],
   ]
-  for (const tool of (result && result.tools) || []) rows.push([Boolean(opened[tool.id]), tool.label,
+  for (const tool of ((result && result.tools) || []).filter(tool => !(codexMain() && tool.id === 'codex'))) rows.push([Boolean(opened[tool.id]), tool.label,
     opened[tool.id] ? `Opened in a terminal. Sign in there with ${tool.account}.` : `Set up. Open it once to sign in with ${tool.account}.`, tool])
   $('ready').replaceChildren(...rows.map(([on, title, detail, go]) => {
     const li = document.createElement('li')
@@ -716,8 +790,9 @@ function show(n) {
   for (const el of document.querySelectorAll('.page')) el.hidden = Number(el.dataset.page) !== n
   $('progress').hidden = $('bar').hidden = n === 0
   const choices = [1, 2, 2.5, 3]
-  $('progress').textContent = n <= 3 ? `Step ${choices.indexOf(n) + 1} of 4` : `Almost there: ${n - 3} of 7`
-  const total = n <= 3 ? 4 : 7, at = n <= 3 ? choices.indexOf(n) + 1 : n - 3
+  const after = codexMain() ? [4.5, 9, 10] : [4, 5, 6, 7, 8, 9, 10]
+  $('progress').textContent = n <= 3 ? `Step ${choices.indexOf(n) + 1} of 4` : `Almost there: ${after.indexOf(n) + 1} of ${after.length}`
+  const total = n <= 3 ? 4 : after.length, at = (n <= 3 ? choices : after).indexOf(n) + 1
   $('bar').replaceChildren(...Array.from({ length: total }, (_, i) =>
     Object.assign(document.createElement('i'), { className: i < at ? 'on' : '' })))
   window.scrollTo(0, 0)
@@ -725,7 +800,8 @@ function show(n) {
   if (first) { first.tabIndex = -1; first.focus({ preventScroll: true }) }
 }
 for (const button of document.querySelectorAll('button[data-go]')) {
-  button.onclick = () => show(Number(button.dataset.go))
+  // With Codex as the main assistant, the Claude-only pages are skipped: GitHub's Back goes to the ChatGPT page.
+  button.onclick = () => { const to = Number(button.dataset.go); show(codexMain() && to === 8 ? 4.5 : to) }
 }
 
 function refresh() {
@@ -778,12 +854,14 @@ async function load() {
     const box = Object.assign(document.createElement('input'), { type: 'checkbox', value: tool.id, checked: tool.on })
     const words = document.createElement('span')
     words.append(Object.assign(document.createElement('b'), { textContent: tool.label }),
-      `${tool.maker}. Needs ${tool.account}.`)
+      `${tool.maker}. Needs ${tool.account}.`
+      + (tool.here ? (tool.signedIn ? ' Already on this computer, and signed in.' : ' Already on this computer.') : ''))
     row.append(box, words)
-    box.onchange = () => { $('extras-bypass-row').hidden = !pickedTools().length }
+    box.onchange = refreshTools
     $('tool-list').append(row)
   }
-  $('extras-bypass-row').hidden = !pickedTools().length
+  $('main').onchange = refreshTools
+  refreshTools()
   for (const [name, hex] of Object.entries(options.colors)) {
     const b = document.createElement('button')
     b.type = 'button'; b.dataset.color = name; b.style.background = hex; b.title = name
@@ -821,20 +899,27 @@ $('go').onclick = async () => {
       body: JSON.stringify({
         assistant: chosenName(), color, style: $('style').value, user: $('user').value, role: $('role').value, roofr: $('roofr').value,
         mode: $('mode').value, remote: $('remote').checked, colors: $('tint').checked, token: $('token').value,
-        tools: pickedTools(), extrasBypass: $('extras-bypass').checked,
+        tools: pickedTools(), main: $('main').value, extrasBypass: $('extras-bypass').checked,
       }),
     })
     result = await response.json()
     if (!result.ok) throw new Error(result.error || 'Setup did not finish.')
     $('done-name').textContent = result.assistant
     $('done-folder').textContent = result.folder
-    $('log').replaceChildren(...result.log.map(line => Object.assign(document.createElement('li'), { textContent: line })))
+    for (const list of [$('log'), $('log-codex')]) {
+      list.replaceChildren(...result.log.map(line => Object.assign(document.createElement('li'), { textContent: line })))
+    }
+    for (const el of document.querySelectorAll('.the-folder')) el.textContent = result.folder
     for (const el of document.querySelectorAll('.the-name')) el.textContent = result.assistant
-    show(4)
+    show(codexMain() ? 4.5 : 4)
     post('/installs/status').then(showInstalls)
     post('/github/status').then(showGithub)
-    post('/app/status').then(showApp)
-    post('/account/status').then(showAccount)
+    if (codexMain()) {
+      post('/codex/status').then(showCodex)
+    } else {
+      post('/app/status').then(showApp)
+      post('/account/status').then(showAccount)
+    }
   } catch (error) {
     $('error').textContent = `${error.message} Nothing is broken: fix it and click again, or send ${options.contact || 'your manager'} a screenshot.`
     $('error').hidden = false
@@ -1076,7 +1161,23 @@ $('copy-folder').onclick = async () => {
   }
 }
 
+async function openChatGPT() {
+  const reply = await post('/tool/open', { tool: 'codex', folder: result ? result.folder : '' })
+  if (reply.opened) opened.codex = true
+  $('cx-note').textContent = reply.opened ? 'ChatGPT is opening on your folder. Follow the steps below, then come back here and click Next.'
+    : reply.installed ? 'It did not open by itself. In your folder, double-click "Open Codex".'
+      : 'Codex is still installing. Watch the installs panel, then click again.'
+  return reply.opened
+}
+$('cx-open').onclick = openChatGPT
+$('cx-login').onclick = async () => showCodex(await post('/codex/login'))
+
 $('final-open').onclick = async () => {
+  $('final-open').dataset.clicked = '1'
+  if (codexMain()) {
+    $('final-open').textContent = (await openChatGPT()) ? 'ChatGPT is opening…' : 'In your folder, double-click "Open Codex"'
+    return
+  }
   const opened = await post('/open', { folder: result ? result.folder : '' })
   $('final-open').textContent = opened.claude ? 'Claude is opening…' : 'Open Claude from your Applications or Start menu'
 }

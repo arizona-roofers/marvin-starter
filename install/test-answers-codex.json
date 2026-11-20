@@ -1,0 +1,13 @@
+{
+  "assistant": "Sol",
+  "user": "Pat",
+  "role": "Sales Rep",
+  "style": "Casual",
+  "color": "Teal",
+  "mode": "bypassPermissions",
+  "roofr": "Pat Example",
+  "main": "codex",
+  "tools": [
+    "codex"
+  ]
+}
