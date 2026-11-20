@@ -197,6 +197,31 @@
     background: color-mix(in srgb, var(--bg) 60%, transparent); border: 1px solid var(--edge); transition: transform .12s, border-color .2s; }
   .try:hover { transform: translateY(-1px); border-color: var(--accent); }
   .try small { display: block; color: var(--accent); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-top: 4px; }
+  .intro { text-align: center; padding-top: 4vh; }
+  .intro .orb.big { animation: pop .7s cubic-bezier(.2, 1.5, .4, 1) both, breathe 6s ease-in-out .7s infinite alternate; }
+  .kicker { margin: 22px 0 6px; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .stage { position: relative; height: 210px; margin: 26px 0 6px; }
+  .slide { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .5s ease; }
+  .slide.on { opacity: 1; pointer-events: auto; }
+  .slide p { margin: 0; }
+  .slide .old { color: var(--soft); font-size: 17px; position: relative; display: inline-block; align-self: center; }
+  .slide .old::after { content: ""; position: absolute; left: 0; top: 55%; height: 2px; width: 0; background: var(--soft); }
+  .slide.on .old::after { width: 100%; transition: width .6s ease .9s; }
+  .slide .new { font-size: clamp(28px, 5.500vw, 40px); font-weight: 780; letter-spacing: -.025em; line-height: 1.1; margin-top: 14px;
+    background: linear-gradient(120deg, var(--ink), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    opacity: 0; transform: translateY(12px); }
+  .slide.on .new { opacity: 1; transform: none; transition: opacity .6s ease 1.3s, transform .6s cubic-bezier(.2, .7, .2, 1) 1.3s; }
+  .slide .sub { color: var(--ink); font-size: 17px; margin-top: 10px; opacity: 0; }
+  .slide.on .sub { opacity: .9; transition: opacity .6s ease 1.8s; }
+  .dots { display: flex; gap: 8px; justify-content: center; margin: 0 0 26px; }
+  .dots button { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: 0; cursor: pointer; background: var(--edge); transition: background .3s, transform .3s; }
+  .dots button[aria-selected=true] { background: var(--accent); transform: scale(1.35); }
+  .intro .go { max-width: 320px; margin: 0 auto; display: block; }
+  .static .stage { height: auto; display: grid; gap: 18px; text-align: left; }
+  .static .slide { position: static; opacity: 1; }
+  .static .slide .new, .static .slide .sub { opacity: 1; transform: none; }
+  .static .slide .old::after { width: 100%; }
+  .static .dots { display: none; }
   .progress { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -259,27 +284,36 @@
   <p class="progress" id="progress" aria-live="polite"></p>
   <div class="bar" id="bar" aria-hidden="true"></div>
 
-  <div class="page" data-page="1">
+  <div class="page" data-page="0">
+    <div class="intro">
+      <div class="orb big" aria-hidden="true">&#10022;</div>
+      <p class="kicker">Arizona Roofers</p>
+      <h1>Your own AI assistant</h1>
+      <p class="lede">It is Claude, set up for your job.</p>
+      <div class="stage" id="stage" aria-live="polite">
+        <div class="slide"><p class="old">Regular Claude starts every chat from zero.</p>
+          <p class="new">Yours remembers.</p><p class="sub">It keeps notes on your work and picks up where you left off, even days later.</p></div>
+        <div class="slide"><p class="old">Regular Claude knows nothing about our company.</p>
+          <p class="new">Yours knows Arizona Roofers.</p><p class="sub">The booking rules, the call scripts, the tools, and who to ask.</p></div>
+        <div class="slide"><p class="old">Regular Claude only knows what you paste in.</p>
+          <p class="new">Yours looks things up.</p><p class="sub">Jobs in Roofr, phone calls, your email and your calendar.</p></div>
+        <div class="slide"><p class="old">Regular Claude tells you what to click.</p>
+          <p class="new">Yours does the clicking.</p><p class="sub">It makes the change in Roofr for you, in your own sign-in, after you say yes.</p></div>
+        <div class="slide"><p class="old">Regular Claude stays on the screen you opened it on.</p>
+          <p class="new">Yours goes with you.</p><p class="sub">Start something at your desk and check on it from your phone.</p></div>
+      </div>
+      <div class="dots" id="dots" role="tablist" aria-label="Differences"></div>
+      <button class="go" id="begin" data-go="1">Get started</button>
+      <p class="hint" style="text-align:center;margin-top:12px">About five minutes.</p>
+    </div>
+  </div>
+
+  <div class="page" data-page="1" hidden>
     <div class="hero">
       <div class="orb" id="orb" aria-hidden="true">J</div>
       <h1>Meet <span id="title-name">Jarvis</span>,<br>your AI assistant</h1>
     </div>
-    <p class="lede">It is Claude, set up for your job at Arizona Roofers.</p>
-    <section class="why">
-      <h2>How this is different from regular Claude</h2>
-      <div class="vs head"><span>Regular Claude</span><span class="the-name">Jarvis</span></div>
-      <div class="vs"><span>Starts every chat from zero.</span>
-        <span><b>Remembers.</b> Keeps notes on your work and picks up where you left off, even days later.</span></div>
-      <div class="vs"><span>Knows nothing about our company.</span>
-        <span><b>Knows Arizona Roofers.</b> The booking rules, the call scripts, the tools, and who to ask.</span></div>
-      <div class="vs"><span>Only knows what you paste in.</span>
-        <span><b>Looks things up itself.</b> Jobs in Roofr, phone calls, your email and your calendar.</span></div>
-      <div class="vs"><span>Tells you what to click.</span>
-        <span><b>Does the clicking.</b> Makes the change in Roofr for you, in your own sign-in, after you say yes.</span></div>
-      <div class="vs"><span>Stays on the screen you opened it on.</span>
-        <span><b>Goes with you.</b> Start something at your desk and check on it from your phone.</span></div>
-    </section>
-    <p class="lede" style="margin-bottom:14px">A few quick choices and it is yours. Everything can be changed later.</p>
+    <p class="lede">A few quick choices and it is yours. Everything can be changed later.</p>
     <section>
       <h2>Your assistant</h2>
       <label id="name-label">What should it be called?</label>
@@ -295,7 +329,7 @@
       <div class="voices" id="style-cards" role="group" aria-labelledby="style-label"></div>
       <select id="style" hidden></select>
     </section>
-    <div class="nav"><span></span><button class="go next" data-go="2">Next</button></div>
+    <div class="nav"><button class="go quiet back" data-go="0">Back</button><button class="go next" data-go="2">Next</button></div>
   </div>
 
   <div class="page" data-page="2" hidden>
@@ -564,13 +598,42 @@ function showFinale() {
   }
 }
 
+// The intro: one difference at a time, turning by itself.
+let slideAt = 0, slideTimer
+function showSlide(i, restart = true) {
+  const slides = [...$('stage').children]
+  slideAt = (i + slides.length) % slides.length
+  slides.forEach((el, k) => el.classList.toggle('on', k === slideAt))
+  ;[...$('dots').children].forEach((dot, k) => dot.setAttribute('aria-selected', String(k === slideAt)))
+  clearTimeout(slideTimer)
+  if (restart && page === 0) slideTimer = setTimeout(() => showSlide(slideAt + 1), 4600)
+}
+function startIntro() {
+  const stage = $('stage')
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {  // no motion: show all five at once
+    stage.closest('.intro').classList.add('static')
+    return
+  }
+  $('dots').replaceChildren(...[...stage.children].map((_, k) => {
+    const dot = Object.assign(document.createElement('button'), { type: 'button' })
+    dot.setAttribute('role', 'tab')
+    dot.setAttribute('aria-label', `Difference ${k + 1} of ${stage.children.length}`)
+    dot.onclick = () => showSlide(k)
+    return dot
+  }))
+  showSlide(0)
+}
+
 function show(n) {
   page = n
+  if (n !== 0) clearTimeout(slideTimer)
+  else if ($('dots').children.length) showSlide(slideAt)
   if (n === 10) showFinale()
   if (n === 7) setTimeout(() => $('drill').focus(), 60)
   if (n === 8) post('/connectors/status').then(showConnectors)
   if (n === 9) post('/github/status').then(showGithub)
   for (const el of document.querySelectorAll('.page')) el.hidden = Number(el.dataset.page) !== n
+  $('progress').hidden = $('bar').hidden = n === 0
   $('progress').textContent = n <= 3 ? `Step ${n} of 3` : `Almost there: ${n - 3} of 7`
   const total = n <= 3 ? 3 : 7, at = n <= 3 ? n : n - 3
   $('bar').replaceChildren(...Array.from({ length: total }, (_, i) =>
@@ -910,7 +973,7 @@ $('finish').onclick = async () => {
   for (const el of document.querySelectorAll('.page[data-page="10"] .back')) el.disabled = true
 }
 
-load().then(() => show(1))
+load().then(() => { show(0); startIntro() })
 </script>
 </body>
 </html>
