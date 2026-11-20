@@ -351,7 +351,7 @@ function showApp(status) {
   } else if (status.state === 'installing') {
     open.disabled = true
     open.textContent = 'Getting the Claude app…'
-    $('open-note').textContent = 'This takes a minute or two. The button turns into "Open Claude" when it is ready.'
+    $('open-note').textContent = 'It is a large download, so give it a few minutes. The button turns into "Open Claude" when it is ready.'
     setTimeout(async () => showApp(await post('/app/status')), 3000)
   } else {
     open.disabled = false
