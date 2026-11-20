@@ -967,7 +967,8 @@ def open_claude():
 
 # Anthropic's own "latest" links; each answers with a redirect to the current installer.
 CLAUDE_APP_URL = {
-    "mac": "https://claude.ai/api/desktop/darwin/universal/dmg/latest/redirect",
+    # The app's own update feed. It is open to plain downloaders; claude.ai's link is not.
+    "mac": "https://downloads.claude.ai/releases/darwin/universal/RELEASES.json",
     "win": "https://claude.ai/api/desktop/win32/x64/setup/latest/redirect",
     "win-arm": "https://claude.ai/api/desktop/win32/arm64/setup/latest/redirect",
 }
@@ -1019,13 +1020,13 @@ BROWSER_AGENT = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/53
                  "(KHTML, like Gecko) Chrome/130.0 Safari/537.36")
 
 
-def _download(url, dest):
-    """Fetch a large file. The download site turns away clients that do not look like a browser."""
+def _download(url, dest, least=1_000_000):
+    """Fetch a file. claude.ai turns away clients that do not look like a browser."""
     curl = shutil.which("curl")
     if curl:  # the system's own downloader: uses the system's certificates, follows redirects
         done = subprocess.run([curl, "-fL", "--retry", "2", "-sS", "-A", BROWSER_AGENT, "-o", str(dest), url],
                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800)
-        if done.returncode == 0 and Path(dest).exists() and Path(dest).stat().st_size > 1_000_000:
+        if done.returncode == 0 and Path(dest).exists() and Path(dest).stat().st_size > least:
             return
         problem = (done.stderr or "").strip().splitlines()[-1:] or ["download failed"]
         raise OSError("curl: " + problem[0])
@@ -1040,20 +1041,20 @@ def _install_claude_app():
     work = Path(tempfile.mkdtemp(prefix="claude-app-"))
     try:
         if IS_MAC:
-            dmg = work / "Claude.dmg"
-            _download(CLAUDE_APP_URL["mac"], dmg)
-            mount = work / "mount"
-            mount.mkdir()
-            subprocess.run(["hdiutil", "attach", str(dmg), "-nobrowse", "-quiet", "-mountpoint", str(mount)], check=True)
-            try:
-                source = next(mount.glob("*.app"))
-                target = Path("/Applications")
-                if not os.access(str(target), os.W_OK):
-                    target = Path.home() / "Applications"
-                    target.mkdir(exist_ok=True)
-                subprocess.run(["ditto", str(source), str(target / source.name)], check=True)
-            finally:
-                subprocess.run(["hdiutil", "detach", str(mount), "-quiet"], check=False)
+            feed = work / "releases.json"
+            _download(CLAUDE_APP_URL["mac"], feed, least=20)
+            releases = json.loads(feed.read_text(encoding="utf-8"))
+            current = releases["currentRelease"]
+            url = next(r["updateTo"]["url"] for r in releases["releases"] if r["version"] == current)
+            if not url.startswith("https://downloads.claude.ai/") or not url.endswith(".zip"):
+                raise OSError("unexpected download address")
+            archive = work / "Claude.zip"
+            _download(url, archive)
+            target = Path("/Applications")
+            if not os.access(str(target), os.W_OK):
+                target = Path.home() / "Applications"
+                target.mkdir(exist_ok=True)
+            subprocess.run(["ditto", "-x", "-k", str(archive), str(target)], check=True)
         elif IS_WINDOWS:
             import platform
             setup = work / "Claude-Setup.exe"

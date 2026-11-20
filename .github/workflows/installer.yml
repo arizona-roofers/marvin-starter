@@ -60,8 +60,6 @@ jobs:
 
       - name: The setup page can install the Claude app by itself (Mac)
         if: runner.os == 'macOS'
-        # The download site may refuse GitHub's machines; that says nothing about a real Mac.
-        continue-on-error: true
         run: |
           rm -rf /Applications/Claude.app "$HOME/Applications/Claude.app"
           python3 - <<'PY'
