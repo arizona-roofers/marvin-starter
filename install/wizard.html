@@ -71,6 +71,29 @@
   table.cmds tr:first-child td { border-top: 0; }
   table.cmds td:first-child { white-space: nowrap; padding-right: 16px; }
   code { font-family: ui-monospace, Consolas, monospace; font-weight: 700; color: var(--accent); }
+  .stores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  a.store {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px; text-decoration: none;
+    color: var(--ink); border: 1px solid var(--line); border-radius: 12px;
+  }
+  a.store .qr { background: #fff; padding: 6px; border-radius: 8px; line-height: 0; }
+  a.store .qr svg { width: 128px; height: 128px; }
+  .phones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 520px) { .phones { grid-template-columns: 1fr; } .stores { grid-template-columns: 1fr; } }
+  .phones figure { margin: 0; text-align: center; }
+  .phones svg { width: 100%; max-width: 120px; height: auto; }
+  .phones figcaption { font-size: 14px; color: var(--soft); margin-top: 6px; }
+  .phones figcaption b { display: block; color: var(--ink); }
+  .ph { fill: var(--bg); stroke: var(--line); stroke-width: 2; }
+  .panel { fill: var(--card); stroke: var(--line); stroke-width: 1; }
+  .row { fill: none; stroke: var(--line); stroke-width: 1; }
+  .dim { fill: var(--line); }
+  .inkfill { fill: var(--ink); }
+  .ink { stroke: var(--accent-ink); stroke-width: 2; stroke-linecap: round; fill: none; }
+  .hl { fill: var(--accent); }
+  .dot { fill: var(--accent-ink); }
+  .lbl { fill: var(--accent-ink); font: 700 10px system-ui, sans-serif; }
+  .lbl.small { fill: var(--ink); }
   .progress { color: var(--soft); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 10px; }
   .nav { display: flex; gap: 12px; justify-content: space-between; margin-top: 4px; }
   .nav .go { width: auto; min-width: 150px; padding: 13px 22px; }
@@ -188,6 +211,68 @@
   </div>
 
   <div class="page" data-page="6" hidden>
+    <h1>Claude on your phone</h1>
+    <p class="lede">Start something at your desk, then check on it from anywhere.</p>
+    <section>
+      <h2>1. Get the app</h2>
+      <p class="hint" style="margin:0 0 12px">Point your phone's camera at the code for your phone.</p>
+      <div class="stores">
+        <a class="store" href="https://apps.apple.com/us/app/claude-by-anthropic/id6473753684" target="_blank" rel="noopener">
+          <span class="qr"><svg width="111" height="111" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h37v37h-37z"/><path class="qrline" stroke="#111" d="M2 2.5h7m4 0h6m1 0h2m2 0h2m2 0h7m-33 1h1m5 0h1m2 0h1m1 0h1m3 0h2m1 0h1m1 0h1m1 0h2m2 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m1 0h1m4 0h5m1 0h1m3 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m5 0h2m3 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m3 0h3m2 0h1m1 0h1m2 0h1m2 0h1m2 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m1 0h3m1 0h1m2 0h1m2 0h4m4 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-24 1h2m3 0h1m2 0h2m1 0h2m1 0h1m-24 1h1m2 0h1m1 0h2m1 0h2m1 0h4m3 0h1m2 0h1m2 0h2m1 0h1m-28 1h6m2 0h1m1 0h4m2 0h2m2 0h1m1 0h1m2 0h3m4 0h1m-33 1h2m2 0h1m1 0h1m2 0h2m1 0h2m5 0h1m1 0h2m2 0h1m1 0h2m1 0h1m1 0h1m-33 1h2m1 0h3m1 0h1m1 0h1m1 0h1m1 0h3m4 0h4m2 0h1m1 0h2m2 0h1m-33 1h3m1 0h4m1 0h3m2 0h1m2 0h2m1 0h2m2 0h1m1 0h2m1 0h1m2 0h1m-33 1h1m4 0h1m2 0h1m1 0h4m2 0h1m1 0h4m2 0h1m1 0h1m1 0h1m2 0h2m-33 1h1m3 0h5m4 0h2m5 0h1m1 0h5m3 0h2m-30 1h1m1 0h2m1 0h2m2 0h1m5 0h3m1 0h1m1 0h2m1 0h2m3 0h1m-31 1h1m2 0h4m1 0h3m1 0h2m1 0h2m2 0h3m3 0h1m1 0h1m2 0h1m-32 1h1m1 0h1m2 0h1m1 0h4m2 0h1m2 0h1m1 0h1m2 0h5m1 0h1m1 0h1m1 0h1m-32 1h1m2 0h5m2 0h1m1 0h1m4 0h1m2 0h1m1 0h1m1 0h2m4 0h3m-33 1h1m1 0h2m1 0h1m2 0h3m2 0h1m1 0h9m1 0h1m1 0h1m-26 1h1m3 0h1m5 0h3m3 0h2m1 0h1m1 0h1m1 0h1m5 0h2m-30 1h1m1 0h1m2 0h1m1 0h2m1 0h1m3 0h2m1 0h2m2 0h3m4 0h2m-33 1h3m1 0h1m1 0h1m1 0h4m1 0h2m1 0h1m2 0h1m4 0h4m2 0h1m1 0h1m-32 1h2m2 0h1m1 0h3m3 0h4m1 0h1m2 0h1m1 0h2m1 0h1m1 0h2m1 0h1m-32 1h1m1 0h3m1 0h1m1 0h1m2 0h3m2 0h2m1 0h3m1 0h6m2 0h1m-24 1h1m4 0h2m2 0h3m2 0h1m1 0h1m3 0h2m2 0h1m-33 1h7m3 0h3m5 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h4m-32 1h1m5 0h1m1 0h1m1 0h2m4 0h7m1 0h1m3 0h1m3 0h1m-33 1h1m1 0h3m1 0h1m4 0h12m1 0h6m1 0h2m-33 1h1m1 0h3m1 0h1m1 0h2m1 0h4m3 0h1m1 0h1m5 0h1m1 0h2m-30 1h1m1 0h3m1 0h1m2 0h1m4 0h1m2 0h2m5 0h2m2 0h3m1 0h1m-33 1h1m5 0h1m2 0h1m2 0h2m3 0h3m1 0h4m4 0h1m-30 1h7m1 0h5m1 0h1m1 0h1m1 0h1m2 0h1m2 0h2m2 0h2m1 0h1"/></g></svg></span>
+          <b>iPhone</b><span class="hint">App Store</span></a>
+        <a class="store" href="https://play.google.com/store/apps/details?id=com.anthropic.claude" target="_blank" rel="noopener">
+          <span class="qr"><svg width="123" height="123" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h41v41h-41z"/><path class="qrline" stroke="#111" d="M2 2.5h7m1 0h2m7 0h3m1 0h4m1 0h1m3 0h7m-37 1h1m5 0h1m3 0h1m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m3 0h2m1 0h1m1 0h1m5 0h1m-37 1h1m1 0h3m1 0h1m1 0h4m1 0h2m2 0h1m3 0h1m1 0h3m1 0h2m1 0h1m1 0h3m1 0h1m-37 1h1m1 0h3m1 0h1m2 0h2m2 0h2m1 0h2m1 0h4m1 0h4m2 0h1m1 0h3m1 0h1m-37 1h1m1 0h3m1 0h1m4 0h2m1 0h5m6 0h2m3 0h1m1 0h3m1 0h1m-37 1h1m5 0h1m1 0h1m1 0h3m2 0h2m4 0h2m1 0h2m2 0h1m1 0h1m5 0h1m-37 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-27 1h3m2 0h1m2 0h1m2 0h1m1 0h2m1 0h3m-29 1h1m1 0h1m3 0h2m1 0h1m3 0h7m1 0h1m2 0h1m1 0h1m1 0h1m2 0h1m2 0h1m1 0h1m-37 1h1m2 0h2m6 0h1m1 0h1m2 0h3m8 0h2m1 0h2m1 0h1m1 0h2m-34 1h1m2 0h2m1 0h1m2 0h2m2 0h1m2 0h1m1 0h1m1 0h1m3 0h4m1 0h3m1 0h1m-37 1h1m1 0h1m5 0h2m1 0h1m2 0h3m1 0h1m5 0h1m1 0h1m-26 1h2m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m4 0h1m3 0h2m2 0h2m1 0h1m5 0h1m-36 1h2m1 0h2m1 0h2m5 0h4m1 0h2m2 0h1m1 0h1m1 0h2m1 0h2m1 0h1m2 0h1m-31 1h1m1 0h4m3 0h2m2 0h5m3 0h1m5 0h2m1 0h1m-36 1h1m1 0h1m1 0h1m2 0h2m1 0h1m1 0h2m1 0h2m4 0h1m1 0h1m2 0h2m1 0h4m1 0h1m-33 1h2m1 0h1m4 0h4m2 0h1m1 0h4m1 0h1m2 0h1m2 0h2m3 0h1m-34 1h1m5 0h1m2 0h3m6 0h6m1 0h5m1 0h4m-37 1h2m2 0h3m4 0h3m1 0h1m1 0h1m2 0h1m2 0h3m1 0h1m3 0h1m2 0h1m1 0h1m-37 1h3m1 0h1m2 0h2m3 0h1m6 0h2m1 0h1m1 0h1m2 0h2m2 0h3m-33 1h1m4 0h6m2 0h3m6 0h2m3 0h1m1 0h2m1 0h1m1 0h1m-36 1h1m3 0h2m2 0h1m2 0h6m2 0h6m2 0h2m1 0h1m5 0h1m-34 1h1m2 0h3m1 0h1m2 0h1m1 0h1m1 0h3m3 0h1m2 0h3m1 0h1m2 0h2m1 0h1m-34 1h2m6 0h1m1 0h2m3 0h1m2 0h1m1 0h2m1 0h3m2 0h3m1 0h2m-35 1h3m1 0h2m1 0h5m2 0h4m1 0h1m2 0h1m3 0h1m1 0h2m-29 1h1m5 0h1m1 0h1m2 0h1m1 0h1m1 0h1m4 0h2m2 0h2m1 0h1m5 0h1m-37 1h2m1 0h2m1 0h1m1 0h2m4 0h1m1 0h2m1 0h1m2 0h2m1 0h1m1 0h4m1 0h1m3 0h1m-35 1h1m1 0h1m4 0h3m1 0h1m1 0h2m1 0h1m5 0h1m1 0h2m1 0h1m1 0h3m2 0h1m-37 1h3m1 0h4m2 0h2m2 0h1m1 0h1m2 0h2m2 0h2m1 0h8m1 0h2m-29 1h5m1 0h7m2 0h3m2 0h1m3 0h1m2 0h2m-37 1h7m1 0h4m2 0h2m3 0h1m1 0h3m1 0h1m2 0h1m1 0h1m1 0h1m2 0h2m-37 1h1m5 0h1m2 0h1m2 0h3m2 0h1m1 0h2m1 0h2m4 0h1m3 0h1m2 0h2m-37 1h1m1 0h3m1 0h1m2 0h1m1 0h3m1 0h1m1 0h1m2 0h4m3 0h6m2 0h2m-37 1h1m1 0h3m1 0h1m2 0h3m1 0h2m5 0h1m1 0h4m1 0h1m1 0h1m2 0h3m-35 1h1m1 0h3m1 0h1m1 0h1m3 0h1m2 0h1m1 0h1m2 0h2m1 0h1m3 0h1m3 0h2m3 0h1m-37 1h1m5 0h1m5 0h3m4 0h2m1 0h1m4 0h2m1 0h1m1 0h2m-34 1h7m1 0h1m3 0h1m1 0h3m3 0h1m1 0h3m3 0h4m1 0h1m2 0h1"/></g></svg></span>
+          <b>Android</b><span class="hint">Google Play</span></a>
+      </div>
+      <p class="hint">Sign in with the same work email you use on this computer.</p>
+    </section>
+    <section>
+      <h2>2. Find your chats</h2>
+      <div class="phones">
+        <figure>
+          <svg viewBox="0 0 90 150" role="img" aria-label="Phone with the menu button at the top left highlighted">
+            <rect class="ph" x="3" y="3" width="84" height="144" rx="12"/>
+            <circle class="hl" cx="17" cy="19" r="9"/>
+            <path class="ink" d="M12 16h10M12 19h10M12 22h10"/>
+            <rect class="dim" x="14" y="44" width="62" height="6" rx="3"/>
+            <rect class="dim" x="14" y="56" width="46" height="6" rx="3"/>
+            <rect class="dim" x="10" y="124" width="70" height="14" rx="7"/>
+          </svg>
+          <figcaption><b>Tap the menu</b>The three lines at the top left.</figcaption>
+        </figure>
+        <figure>
+          <svg viewBox="0 0 90 150" role="img" aria-label="Phone menu with Code highlighted">
+            <rect class="ph" x="3" y="3" width="84" height="144" rx="12"/>
+            <rect class="panel" x="3" y="3" width="58" height="144" rx="12"/>
+            <rect class="dim" x="11" y="22" width="36" height="6" rx="3"/>
+            <rect class="hl" x="8" y="36" width="48" height="16" rx="6"/>
+            <text class="lbl" x="15" y="47.500">Code</text>
+            <rect class="dim" x="11" y="60" width="40" height="6" rx="3"/>
+            <rect class="dim" x="11" y="74" width="30" height="6" rx="3"/>
+          </svg>
+          <figcaption><b>Tap Code</b>It is in the menu that slides out.</figcaption>
+        </figure>
+        <figure>
+          <svg viewBox="0 0 90 150" role="img" aria-label="Phone showing a list of chats from the computer, one highlighted">
+            <rect class="ph" x="3" y="3" width="84" height="144" rx="12"/>
+            <text class="lbl small" x="12" y="22">Code</text>
+            <rect class="hl" x="9" y="30" width="72" height="24" rx="7"/>
+            <circle class="dot" cx="18" cy="42" r="3.500"/>
+            <rect class="inkfill" x="26" y="36" width="44" height="5" rx="2.500"/>
+            <rect class="dim" x="26" y="45" width="30" height="4" rx="2"/>
+            <rect class="row" x="9" y="60" width="72" height="24" rx="7"/>
+            <rect class="dim" x="26" y="66" width="40" height="5" rx="2.500"/>
+            <rect class="dim" x="26" y="75" width="26" height="4" rx="2"/>
+          </svg>
+          <figcaption><b>Tap a chat</b>The ones running on this computer are listed. Tap one to carry on.</figcaption>
+        </figure>
+      </div>
+      <p class="hint">A chat shows on your phone while this computer is on with Claude open. The pictures are a sketch; your app may look a little different.</p>
+    </section>
+    <div class="nav"><button class="go quiet back" data-go="5">Back</button><button class="go next" data-go="7">Next</button></div>
+  </div>
+
+  <div class="page" data-page="7" hidden>
     <h1>The commands you will use</h1>
     <p class="lede">Three shortcuts cover most days. Everything else is plain English.</p>
     <section>
@@ -198,16 +283,15 @@
       </table>
       <p class="hint">The full list is in <b>START-HERE.md</b> in your folder, or type <code>/help</code>.</p>
     </section>
-    <div class="nav"><button class="go quiet back" data-go="5">Back</button><button class="go next" data-go="7">Next</button></div>
+    <div class="nav"><button class="go quiet back" data-go="6">Back</button><button class="go next" data-go="8">Next</button></div>
   </div>
 
-  <div class="page" data-page="7" hidden>
+  <div class="page" data-page="8" hidden>
     <h1>Last things</h1>
     <p class="lede">None of these are required today.</p>
     <section>
       <h2>When you have a minute</h2>
-      <ol class="next">
-        <li><b>Phone:</b> install the Claude app on your phone and sign in with the same work email. Your chats show up there.</li>
+      <ol class="next" style="list-style:none;padding-left:0">
         <li><b>Email and calendar:</b> in the Claude app, open Settings, then Connectors, and connect Gmail, Google Calendar and Google Drive.</li>
       </ol>
     </section>
@@ -224,7 +308,7 @@
           <span id="gh-backup-note">Makes a private copy only you can see. Your Roofr token is never included.</span></li>
       </ol>
     </details>
-    <div class="nav"><button class="go quiet back" data-go="6">Back</button><button class="go" id="finish">I'm done</button></div>
+    <div class="nav"><button class="go quiet back" data-go="7">Back</button><button class="go" id="finish">I'm done</button></div>
     <p class="hint" id="finish-note" style="text-align:center;margin-top:12px"></p>
   </div>
 </main>
@@ -243,7 +327,7 @@ let page = 1
 function show(n) {
   page = n
   for (const el of document.querySelectorAll('.page')) el.hidden = Number(el.dataset.page) !== n
-  $('progress').textContent = n <= 3 ? `Step ${n} of 3` : `Almost there: ${n - 3} of 4`
+  $('progress').textContent = n <= 3 ? `Step ${n} of 3` : `Almost there: ${n - 3} of 5`
   window.scrollTo(0, 0)
   const first = document.querySelector(`.page[data-page="${n}"] h1`)
   if (first) { first.tabIndex = -1; first.focus({ preventScroll: true }) }
@@ -442,7 +526,7 @@ $('finish').onclick = async () => {
   await fetch('/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
   $('finish').disabled = true
   $('finish-note').textContent = 'Setup is finished. You can close this tab and the setup window.'
-  for (const el of document.querySelectorAll('.page[data-page="7"] .back')) el.disabled = true
+  for (const el of document.querySelectorAll('.page[data-page="8"] .back')) el.disabled = true
 }
 
 load().then(() => show(1))
