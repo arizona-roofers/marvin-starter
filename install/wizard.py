@@ -1008,7 +1008,7 @@ def open_claude(folder=""):
     if workspace and cli and workspace.parent == Path.home() and (workspace / ".assistant-name").exists():
         try:
             if IS_WINDOWS:
-                subprocess.Popen(["cmd", "/c", "start", "", "/min", "cmd", "/c", f'"{cli}" --desktop'],
+                subprocess.Popen(["cmd", "/c", "start", "", "/min", "cmd", "/c", cli, "--desktop"],
                                  cwd=str(workspace))
                 return True
             if IS_MAC:
@@ -1553,7 +1553,7 @@ def open_agy(folder=""):
         return False
     try:
         if IS_WINDOWS:
-            subprocess.Popen(["cmd", "/c", "start", "", "cmd", "/k", f'"{tool}"'], cwd=str(workspace))
+            subprocess.Popen(["cmd", "/c", "start", "", "cmd", "/k", tool], cwd=str(workspace))
             return True
         if IS_MAC:
             quoted = str(workspace).replace("\\", "\\\\").replace('"', '\\"')
