@@ -2,7 +2,7 @@
 # the starter and finds (or fetches) a Python to run it. The page itself then installs
 # Git, Claude Code, the Claude app, Chrome and the rest, and shows each one's progress.
 #
-# Run it by double-clicking the install file Travis sent you, or paste this in PowerShell:
+# Run it by double-clicking the install file you were sent, or paste this in PowerShell:
 #   irm https://raw.githubusercontent.com/arizona-roofers/marvin-starter/master/install/install.ps1 | iex
 #
 # Safe to run again: it fetches the latest starter and keeps your notes.

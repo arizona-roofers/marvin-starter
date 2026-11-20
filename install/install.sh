@@ -3,7 +3,7 @@
 # the starter and finds (or fetches) a Python to run it. The page itself then installs
 # Claude Code, the Claude app, Chrome and the rest, and shows each one's progress.
 #
-# Run it by opening the install file Travis sent you, or paste this in Terminal:
+# Run it by opening the install file you were sent, or paste this in Terminal:
 #   curl -fsSL https://raw.githubusercontent.com/arizona-roofers/marvin-starter/master/install/install.sh | bash
 #
 # Safe to run again: it fetches the latest starter and keeps your notes.
@@ -42,7 +42,7 @@ else
     curl -LsSf https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh >/dev/null 2>&1 \
       || die "Setup could not get the small tool it needs to start. Check your internet connection and run this again."
   fi
-  command -v uv >/dev/null 2>&1 || die "Setup could not start. Send Travis a screenshot of this window."
+  command -v uv >/dev/null 2>&1 || die "Setup could not start. Send a screenshot of this window to whoever sent you the install file."
   runner=(uv run --quiet --no-project --python 3.12)
 fi
 ok "opening your browser"

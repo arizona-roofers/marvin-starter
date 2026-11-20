@@ -6,9 +6,9 @@ This is a team-ready starter built on [Sterling Chin's MARVIN template](https://
 
 ## Install (Arizona Roofers staff)
 
-One file, about five minutes, Windows or Mac. You need a Claude seat on the company plan first (ask Travis).
+One file, about five minutes, Windows or Mac. You need a Claude seat on the company plan first (ask your manager).
 
-1. Open the install file Travis sent you.
+1. Open the install file you were sent.
    - **Windows:** double-click `Install Assistant.cmd`. If Windows shows a blue "protected your PC" box, click **More info**, then **Run anyway**.
    - **Mac:** unzip `Install Assistant (Mac).zip` and double-click the file inside. macOS will refuse it the first time: open **System Settings → Privacy & Security**, scroll to "Install Assistant.command was blocked", and click **Open Anyway**.
 2. A setup page opens in your browser within a few seconds. It installs Claude Code, the Claude app, Chrome and the rest while you go through it, and shows each one's progress.
@@ -24,13 +24,13 @@ No install file? Paste one line instead, and the setup page will ask for the Roo
 - Windows (PowerShell): `irm https://raw.githubusercontent.com/arizona-roofers/marvin-starter/master/install/install.ps1 | iex`
 - Mac (Terminal): `curl -fsSL https://raw.githubusercontent.com/arizona-roofers/marvin-starter/master/install/install.sh | bash`
 
-### For Travis: building the install file
+### For whoever looks after this: building the install file
 
 ```bash
-python install/build-installer.py        # reads ROOFR_EXTERNAL_TOKEN from .env
+python install/build-installer.py --pack <folder of company notes> --contact "Name"
 ```
 
-Run it from the folder that holds your `.env` and `tools/starter-company-pack/`. It writes `dist/Install Assistant.cmd` and `dist/Install Assistant (Mac).zip` with the Roofr token and the company knowledge pack (facts, SOPs) inside. Neither is ever in this repository. `dist/` is never committed. Share the files from Google Drive limited to arizonaroofers.com. To change the token, rebuild and resend.
+It reads `ROOFR_EXTERNAL_TOKEN` (and `ASSISTANT_HELP_CONTACT`, who setup tells people to ask for help) from the environment or a `.env` in the folder you run it from. The company's private installer repository holds the notes, the `.env.example` and a script that does all of this and uploads the result. It writes `dist/Install Assistant.cmd` and `dist/Install Assistant (Mac).zip` with the Roofr token and the company knowledge pack (facts, SOPs) inside. Neither is ever in this repository. `dist/` is never committed. Share the files from Google Drive limited to arizonaroofers.com. To change the token, rebuild and resend.
 
 ---
 

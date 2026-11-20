@@ -67,6 +67,24 @@ def _token_from_install_file():
 if not INSTALLER_TOKEN:
     INSTALLER_TOKEN = _token_from_install_file()
 
+
+def _contact():
+    """Who to ask for help. The install file names them; nobody is named in this repository."""
+    named = os.environ.get("ASSISTANT_HELP_CONTACT", "")
+    if not named:
+        source = install_file()
+        try:
+            head = source.read_text(encoding="utf-8", errors="ignore")[:4000] if source else ""
+        except OSError:
+            head = ""
+        match = re.search(r"ASSISTANT_HELP_CONTACT=['\"]?([A-Za-z0-9 .@-]{1,60})", head)
+        named = match.group(1) if match else ""
+    named = re.sub(r"[^A-Za-z0-9 .@-]", "", named).strip()[:60]
+    return named or "your manager"
+
+
+CONTACT = _contact()
+
 NAMES = ["Jarvis", "HAL", "WALL-E", "Friday", "Marvin", "Alfred", "Samantha", "Cortana", "Data", "R2"]
 
 ROLES = [
@@ -472,7 +490,7 @@ Think of `/start` and `/save` as bookends. Everything in between is just convers
 - **Colors mean topics.** Orange is Arizona Roofers, green is personal. The shape on
   a chat's title in the sidebar matches.
 - **Your phone works too.** Open the Claude app on your phone to pick up any chat.
-- **Stuck?** Type "I'm stuck" and say what you were trying to do, or send Travis a screenshot.
+- **Stuck?** Type "I'm stuck" and say what you were trying to do, or send {CONTACT} a screenshot.
 """
 
 
@@ -704,7 +722,7 @@ def configure(a):
     elif "ROOFR_EXTERNAL_TOKEN=" in ((workspace / ".env").read_text(encoding="utf-8") if (workspace / ".env").exists() else ""):
         log.append("Roofr data access was already set up.")
     else:
-        log.append("No Roofr token was supplied. Ask Travis for it, then add "
+        log.append(f"No Roofr token was supplied. Ask {CONTACT} for it, then add "
                    "ROOFR_EXTERNAL_TOKEN=... to the .env file in the folder.")
 
     mod_dir = workspace / ".mods" / "session-tint"
@@ -1607,6 +1625,7 @@ class Handler(BaseHTTPRequestHandler):
                 "modes": MODES, "home": str(Path.home()), "sep": os.sep,
                 "hasToken": bool(INSTALLER_TOKEN),
                 "user": os.environ.get("ASSISTANT_USER_NAME", ""),
+                "contact": CONTACT,
             })
         else:
             self.send({"ok": False}, code=404)

@@ -387,7 +387,7 @@
 
       <div id="token-row" hidden>
         <label for="token">Roofr access token</label>
-        <input type="text" id="token" autocomplete="off" placeholder="Paste the token Travis sent you">
+        <input type="text" id="token" autocomplete="off" placeholder="Paste the token you were sent">
         <p class="hint">Leave blank to add it later.</p>
       </div>
     </section>
@@ -499,7 +499,7 @@
       <p class="hint" id="conn-note">Each one gets a tick here once it is connected.</p>
       <button type="button" class="copy" id="conn-check" style="margin:10px 0 0">Check again</button>
     </section>
-    <p class="hint" style="margin:0 0 14px">Don't see one of them on that page? Tell Travis; it may need switching on for the company.</p>
+    <p class="hint" style="margin:0 0 14px">Don't see one of them on that page? Tell <span class="the-contact">your manager</span>; it may need switching on for the company.</p>
     <div class="nav"><button class="go quiet back" data-go="7">Back</button><button class="go next" data-go="9">Next</button></div>
   </div>
 
@@ -507,7 +507,7 @@
     <h1>Back up to GitHub</h1>
     <p class="lede">GitHub keeps a private copy of <span class="the-name">Jarvis</span>'s notes, so nothing is lost if this computer is.</p>
     <section id="github">
-      <p id="gh-missing" class="hint" hidden>Setup could not get the GitHub tool onto this computer, so this step has to wait. Tell Travis, then click Next.</p>
+      <p id="gh-missing" class="hint" hidden>Setup could not get the GitHub tool onto this computer, so this step has to wait. Tell <span class="the-contact">your manager</span>, then click Next.</p>
       <ol class="next steps" id="gh-steps">
         <li><b>Do you already have a GitHub account?</b>
           <div class="chips" style="margin:8px 0 4px">
@@ -553,7 +553,7 @@
       <ul class="done" style="margin-top:12px">
         <li><b>START-HERE.md</b> in your folder lists every command and things to try.</li>
         <li>Run the install file again any time to get updates. Your notes are kept.</li>
-        <li>Stuck? Type "I'm stuck" in a chat, or send Travis a screenshot.</li>
+        <li>Stuck? Type "I'm stuck" in a chat, or send <span class="the-contact">your manager</span> a screenshot.</li>
       </ul>
     </details>
     <div class="nav"><button class="go quiet back" data-go="9">Back</button><button class="go quiet" id="finish">Close setup</button></div>
@@ -753,6 +753,7 @@ async function load() {
   fill($('role'), options.roles.map(r => [r, r]))
   fill($('mode'), Object.entries(options.modes))
   $('user').value = options.user
+  for (const el of document.querySelectorAll('.the-contact')) el.textContent = options.contact || 'your manager'
   $('token-row').hidden = options.hasToken
   for (const [name, hex] of Object.entries(options.colors)) {
     const b = document.createElement('button')
@@ -806,7 +807,7 @@ $('go').onclick = async () => {
     post('/app/status').then(showApp)
     post('/account/status').then(showAccount)
   } catch (error) {
-    $('error').textContent = `${error.message} Nothing is broken: fix it and click again, or send Travis a screenshot.`
+    $('error').textContent = `${error.message} Nothing is broken: fix it and click again, or send ${options.contact || 'your manager'} a screenshot.`
     $('error').hidden = false
     $('go').disabled = false
     refresh()

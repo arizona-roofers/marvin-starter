@@ -2,7 +2,10 @@
 """Build the install files you hand to a new hire, with the Roofr token inside.
 
     python install/build-installer.py              token from ROOFR_EXTERNAL_TOKEN or ./.env
-    python install/build-installer.py --token XXX
+    python install/build-installer.py --token XXX --contact "Anthony"
+
+--contact (or ASSISTANT_HELP_CONTACT in the environment or .env) is who setup tells
+people to ask when they are stuck. Without it, setup says "your manager".
 
 Writes to dist/ (never committed):
     Install Assistant.cmd          Windows: double-click
@@ -26,11 +29,12 @@ RAW = "https://raw.githubusercontent.com/arizona-roofers/marvin-starter/master/i
 WINDOWS = """@echo off
 title Install your AI assistant
 set "ROOFR_EXTERNAL_TOKEN={token}"
+set "ASSISTANT_HELP_CONTACT={contact}"
 set "ASSISTANT_INSTALL_FILE=%~f0"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol='Tls12'; irm {raw}/install.ps1 | iex"
 if errorlevel 1 (
   echo.
-  echo Setup hit a problem. Take a screenshot of this window and send it to Travis.
+  echo Setup hit a problem. Take a screenshot of this window and send it to {contact}.
   pause
 )
 exit /b
@@ -38,29 +42,34 @@ exit /b
 
 MAC = """#!/bin/bash
 export ROOFR_EXTERNAL_TOKEN='{token}'
+export ASSISTANT_HELP_CONTACT='{contact}'
 export ASSISTANT_INSTALL_FILE="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 curl -fsSL {raw}/install.sh | bash
 status=$?
 if [ "$status" -ne 0 ]; then
   echo
-  echo "Setup hit a problem. Take a screenshot of this window and send it to Travis."
+  echo "Setup hit a problem. Take a screenshot of this window and send it to {contact}."
   read -r -p "Press Enter to close." _
 fi
 exit 0
 """
 
 
-def find_token(given):
+def find_setting(name, given=None):
     if given:
         return given
-    if os.environ.get("ROOFR_EXTERNAL_TOKEN"):
-        return os.environ["ROOFR_EXTERNAL_TOKEN"]
+    if os.environ.get(name):
+        return os.environ[name]
     for env in (Path.cwd() / ".env", ROOT / ".env"):
         if env.exists():
             for line in env.read_text(encoding="utf-8").splitlines():
-                if line.startswith("ROOFR_EXTERNAL_TOKEN="):
+                if line.startswith(name + "="):
                     return line.split("=", 1)[1].strip().strip("\"'")
     return ""
+
+
+def find_token(given):
+    return find_setting("ROOFR_EXTERNAL_TOKEN", given)
 
 
 def pack_lines(folder, prefix):
@@ -80,6 +89,8 @@ def pack_lines(folder, prefix):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--token")
+    parser.add_argument("--contact", help="who setup tells people to ask for help")
+    parser.add_argument("--out", help="folder to write the install files to (default: dist/ beside this script's parent)")
     parser.add_argument("--pack", help="folder of company notes to carry (default: ./tools/starter-company-pack)")
     args = parser.parse_args()
     pack = Path(args.pack) if args.pack else Path.cwd() / "tools" / "starter-company-pack"
@@ -90,14 +101,18 @@ def main():
     if not re.fullmatch(r"[A-Za-z0-9_\-]{20,}", token):
         sys.exit("That token has characters an install file cannot carry safely.")
 
+    contact = find_setting("ASSISTANT_HELP_CONTACT", args.contact) or "your manager"
+    if not re.fullmatch(r"[A-Za-z0-9 .@-]{1,60}", contact):
+        sys.exit("The contact may hold letters, numbers, spaces, dots, @ and hyphens only.")
+
     win_pack, count = pack_lines(pack, "::PACK:") if pack.is_dir() else ("", 0)
     mac_pack = pack_lines(pack, "#PACK:")[0] if pack.is_dir() else ""
 
-    dist = ROOT / "dist"
-    dist.mkdir(exist_ok=True)
+    dist = Path(args.out) if args.out else ROOT / "dist"
+    dist.mkdir(parents=True, exist_ok=True)
 
     windows = dist / "Install Assistant.cmd"
-    windows.write_bytes((WINDOWS.format(token=token, raw=RAW) + win_pack).replace("\n", "\r\n").encode("ascii"))
+    windows.write_bytes((WINDOWS.format(token=token, raw=RAW, contact=contact) + win_pack).replace("\n", "\r\n").encode("ascii"))
 
     # A zip keeps the Mac file's "can be run" flag, which a bare download loses.
     mac_zip = dist / "Install Assistant (Mac).zip"
@@ -105,9 +120,9 @@ def main():
     info.external_attr = 0o100755 << 16
     info.create_system = 3
     with zipfile.ZipFile(mac_zip, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr(info, MAC.format(token=token, raw=RAW) + mac_pack)
+        z.writestr(info, MAC.format(token=token, raw=RAW, contact=contact) + mac_pack)
 
-    print(f"Built:\n  {windows}\n  {mac_zip}\n\nBoth hold the Roofr token"
+    print(f"Built:\n  {windows}\n  {mac_zip}\n\nHelp contact: {contact}\nBoth hold the Roofr token"
           + (f" and the company knowledge pack ({count} files)" if count else " (no knowledge pack found)")
           + ". Share them with staff only.")
 
