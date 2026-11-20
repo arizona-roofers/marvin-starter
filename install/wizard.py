@@ -435,8 +435,9 @@ edit `.mods/session-tint/hooks/topics.js`.
 
 ### Other assistants
 
-If you chose them in setup, Gemini (Antigravity), Codex or Grok run in a terminal on
-this same folder: double-click the matching `Open ...` file in this folder. Each reads
+If you chose them in setup, Gemini (Antigravity) and Grok run in a terminal on this
+same folder, and Codex opens it in the ChatGPT desktop app: double-click the matching
+`Open ...` file in this folder. Each reads
 the same notes through `AGENTS.md` (Gemini through `GEMINI.md`) and asks you to sign in
 with its own account the first time.
 
@@ -641,7 +642,7 @@ def desktop_folder():
     return None
 
 
-def write_shortcut(name, workspace, log):
+def write_shortcut(name, workspace, log, main="claude"):
     desktop = desktop_folder()
     if desktop is None:
         log.append("No Desktop folder was found, so no shortcut was made. Open the folder from the Claude app instead.")
@@ -649,13 +650,15 @@ def write_shortcut(name, workspace, log):
     if IS_WINDOWS:
         shortcut = desktop / f"{name}.cmd"
         lines = ["@echo off", "chcp 65001 >nul", f"title {name}", f'cd /d "{workspace}"',
-                 'set "PATH=%USERPROFILE%\\.local\\bin;%PATH%"', "claude --desktop || claude",
+                 'set "PATH=%USERPROFILE%\\.local\\bin;%LOCALAPPDATA%\\Programs\\OpenAI\\Codex\\bin;%PATH%"',
+                 "call codex app ." if main == "codex" else "claude --desktop || claude",
                  "if errorlevel 1 pause", ""]
         shortcut.write_bytes("\r\n".join(lines).encode("utf-8"))
     else:
         shortcut = desktop / f"{name}.command"
         shortcut.write_text(
-            f'#!/bin/bash\nexport PATH="$HOME/.local/bin:$PATH"\ncd "{workspace}" && (claude --desktop || exec claude)\n',
+            f'#!/bin/bash\nexport PATH="$HOME/.local/bin:$PATH"\ncd "{workspace}" && '
+            + ("codex app .\n" if main == "codex" else "(claude --desktop || exec claude)\n"),
             encoding="utf-8")
         shortcut.chmod(0o755)
     log.append(f"Desktop shortcut made: {shortcut.name}")
@@ -664,6 +667,7 @@ def write_shortcut(name, workspace, log):
 def configure(a):
     """Build the workspace from the wizard's answers. Returns what it did."""
     log = []
+    main, with_claude = chosen_main(a), uses_claude(a)
     # The name ends up in a file name and a shortcut script, so keep it to plain characters.
     name = re.sub(r"[^A-Za-z0-9 _-]", "", str(a.get("assistant") or "")).strip()[:30] or "Marvin"
     a["assistant"] = name
@@ -731,7 +735,7 @@ def configure(a):
                    "ROOFR_EXTERNAL_TOKEN=... to the .env file in the folder.")
 
     mod_dir = workspace / ".mods" / "session-tint"
-    if a.get("colors", True):
+    if with_claude and a.get("colors", True):
         mod_dir.mkdir(parents=True, exist_ok=True)
         shutil.copytree(TEMPLATE / "mods" / "session-tint", mod_dir, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("types", "topics.js"))
@@ -744,34 +748,36 @@ def configure(a):
                 encoding="utf-8")
         log.append("Color modes installed.")
 
-    write_settings(a, mod_dir, log)
+    if with_claude:
+        write_settings(a, mod_dir, log)
     extras = chosen_extras(a)
     write_extras(a, workspace, name, extras, log)
     if not os.environ.get("ASSISTANT_SKIP_INSTALLS"):
+        run_installs(claude=with_claude)  # Claude's pieces, if they were not started with the page
         for tool in extras:
             install_extra(tool)
     try:
-        write_shortcut(name, workspace, log)
+        write_shortcut(name, workspace, log, main)
     except OSError:
         log.append("The desktop shortcut could not be made. Open the folder from the Claude app instead.")
 
-    if a.get("chrome", True) and not os.environ.get("ASSISTANT_SKIP_CHROME"):
+    if with_claude and a.get("chrome", True) and not os.environ.get("ASSISTANT_SKIP_CHROME"):
         offer_extension(log)
 
-    missing = missing_apps()
+    missing = missing_apps(with_claude)
     if missing:
         log.append("Still to install: " + "; ".join(missing) + ".")
 
     if shutil.which("git") and not (workspace / ".git").exists():
         subprocess.run(["git", "init", "-q"], cwd=str(workspace), check=False)
 
-    return {"ok": True, "log": log, "folder": str(workspace), "assistant": name,
+    return {"ok": True, "log": log, "folder": str(workspace), "assistant": name, "main": main,
             "tools": [{"id": t, "label": EXTRAS[t]["label"], "account": EXTRAS[t]["account"]} for t in extras],
             "user": a["user"] if a["user"] != "the owner of this computer" else "",
             "try": KITS.get(a["role"], DEFAULT_KIT)["try"][:3]}
 
 
-def missing_apps():
+def missing_apps(with_claude=True):
     """Apps the install step could not put on this machine, with where to get them."""
     if IS_WINDOWS:
         has_chrome = any((Path(os.environ.get(v, "")) / "Google" / "Chrome" / "Application" / "chrome.exe").exists()
@@ -780,7 +786,7 @@ def missing_apps():
         has_chrome = Path("/Applications/Google Chrome.app").exists()
     else:
         return []
-    has_claude = claude_app_installed()
+    has_claude = claude_app_installed() if with_claude else True
     missing = []
     if not has_claude:
         missing.append("the Claude app (claude.ai/download)")
@@ -1284,6 +1290,7 @@ def connectors_status(fresh=False):
 
 INSTALLS = []          # one row per piece of software: id, label, state, note
 INSTALL_LOCK = threading.Lock()
+QUEUE_LOCK = threading.Lock()
 
 
 def _row(step_id):
@@ -1436,14 +1443,20 @@ def install_plan():
     return plan
 
 
-def run_installs(blocking=False):
-    """Fetch whatever is missing. Each row moves waiting -> working -> done or failed."""
+def run_installs(blocking=False, claude=True):
+    """Fetch whatever is missing. Each row moves waiting -> working -> done or failed.
+
+    Safe to call again: it only adds what an earlier call left out (Claude's pieces, when the
+    person turned out to want Claude after all).
+    """
     refresh_path()
-    plan = install_plan()
+    plan = [step for step in install_plan() if claude or not step[0].startswith("claude-")]
     with INSTALL_LOCK:
-        if INSTALLS:
-            return
+        here = {row["id"] for row in INSTALLS}
+        plan = [step for step in plan if step[0] not in here]
         INSTALLS.extend({"id": i, "label": label, "why": why, "state": "waiting", "note": ""} for i, label, _, _, why in plan)
+    if not plan:
+        return
 
     def one(step):
         step_id, _, have, get, _ = step
@@ -1462,6 +1475,10 @@ def run_installs(blocking=False):
         for step in steps:
             one(step)
 
+    def in_turn(steps):  # a second call waits for the first: two installers at once trip each other
+        with QUEUE_LOCK:
+            queue(steps)
+
     # Apple's developer tools take many minutes and wait on a click, so they run on their own.
     slow = [step for step in plan if IS_MAC and step[0] == "git"]
     fast = [step for step in plan if step not in slow]
@@ -1471,7 +1488,7 @@ def run_installs(blocking=False):
             if os.environ.get("CI"):
                 _mark(step[0], "done" if step[2]() else "failed", "")
         return
-    threading.Thread(target=queue, args=(fast,), daemon=True).start()
+    threading.Thread(target=in_turn, args=(fast,), daemon=True).start()
     if slow:
         threading.Thread(target=queue, args=(slow,), daemon=True).start()
 
@@ -1499,8 +1516,10 @@ looking up Roofr jobs and calls. Before a task one of them covers, read it (a fo
 is its `SKILL.md`) and follow it. Access tokens they mention are in `.env` in this folder.
 """
 
-# "never" is the tool's own flag for running without stopping to ask. Antigravity has
-# no flag: its choice is written to its settings file instead.
+# "never" is the tool's own flag for running without stopping to ask. Antigravity and
+# Codex have none here: their choice is written to their settings files instead.
+# "run" is what the folder's "Open ..." file runs when it is not just the command:
+# Codex opens the ChatGPT desktop app on the folder (and offers its installer if missing).
 EXTRAS = {
     "agy": {
         "label": "Gemini (Antigravity)", "short": "Antigravity", "command": "agy", "maker": "Google's assistant",
@@ -1509,8 +1528,9 @@ EXTRAS = {
         "unix": "curl -fsSL https://antigravity.google/cli/install.sh | bash",
     },
     "codex": {
-        "label": "Codex", "short": "Codex", "command": "codex", "maker": "OpenAI's assistant",
-        "account": "a ChatGPT plan of your own", "never": "--dangerously-bypass-approvals-and-sandbox",
+        "label": "Codex (ChatGPT app)", "short": "Codex", "command": "codex", "maker": "OpenAI's assistant",
+        "where": "in the ChatGPT desktop app", "run": "codex app .",
+        "account": "a ChatGPT plan of your own", "never": "",
         "windows": "$env:CODEX_NON_INTERACTIVE=1; irm https://chatgpt.com/codex/install.ps1 | iex",
         "unix": "curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh",
     },
@@ -1567,6 +1587,8 @@ def chosen_extras(a):
     picked = {t for t in a["tools"] if isinstance(t, str)} if isinstance(a.get("tools"), list) else set()
     if a.get("agy"):  # answers written before there was a picker
         picked.add("agy")
+    if chosen_main(a) == "codex":
+        picked.add("codex")
     return [tool for tool in EXTRAS if tool in picked]
 
 
@@ -1577,13 +1599,13 @@ def launcher(tool, workspace):
 def write_launcher(tool, workspace, never_asks):
     """A file in the folder that opens the tool there. Rewritten each run, so it follows the latest choice."""
     spec = EXTRAS[tool]
-    run = spec["command"] + (" " + spec["never"] if never_asks and spec["never"] else "")
+    run = spec.get("run") or spec["command"] + (" " + spec["never"] if never_asks and spec["never"] else "")
     target = launcher(tool, workspace)
     if IS_WINDOWS:
         lines = ["@echo off", f"title {spec['short']}", 'cd /d "%~dp0"',
                  'set "PATH=%LOCALAPPDATA%\\agy\\bin;%LOCALAPPDATA%\\Programs\\OpenAI\\Codex\\bin;'
                  '%USERPROFILE%\\.grok\\bin;%USERPROFILE%\\.local\\bin;%PATH%"',
-                 f"call {run}", "if errorlevel 1 pause", ""]
+                 f"call {run}", "if errorlevel 1 pause"] + (["exit"] if "run" in spec else []) + [""]
         target.write_bytes("\r\n".join(lines).encode("ascii"))
     else:
         target.write_text('#!/bin/bash\ncd "$(dirname "$0")" || exit 1\n'
@@ -1617,6 +1639,144 @@ def write_agy_settings(workspace, never_asks, log):
     path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
 
 
+# --- Which assistant is the main one: detected from what is already here ---------------
+
+MAINS = ("claude", "codex")   # the ones setup can build its walk-through around
+CODEX_LOGIN = {"running": False}
+DETECTED = {}
+OURS = "  # set by assistant setup"
+
+
+def codex_signed_in():
+    exe = tool_path("codex")
+    if exe is None:
+        return False
+    try:
+        return subprocess.run([exe, "login", "status"], capture_output=True, timeout=30,
+                              stdin=subprocess.DEVNULL).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def detect():
+    """What was on this computer before setup installed anything: each assistant, and whether it is signed in."""
+    cli = claude_cli()
+    found = {
+        "claude": {"installed": bool(cli) or claude_app_installed(),
+                   "signedIn": bool(cli) and claude_account().get("state") in ("work", "other")},
+        "codex": {"installed": tool_path("codex") is not None, "signedIn": codex_signed_in()},
+        "grok": {"installed": tool_path("grok") is not None, "signedIn": (Path.home() / ".grok" / "auth.json").is_file()},
+        "agy": {"installed": tool_path("agy") is not None, "signedIn": None},  # no quiet way to ask it
+    }
+    DETECTED.clear()
+    DETECTED.update(found)
+    return found
+
+
+def default_main():
+    """The install file's first choice if it names one; else what the person already uses; else Claude."""
+    named = [w for w in _install_setting("ASSISTANT_DEFAULT_TOOLS", "A-Za-z,").lower().split(",") if w in MAINS]
+    if named:
+        return named[0]
+    for wanted in ("signedIn", "installed"):
+        here = [tool for tool in MAINS if DETECTED.get(tool, {}).get(wanted)]
+        if here:
+            return here[0]
+    return "claude"
+
+
+def chosen_main(a):
+    return a.get("main") if a.get("main") in MAINS else "claude"
+
+
+def uses_claude(a):
+    """Claude is set up when it is the main assistant, or was ticked beside another one."""
+    return chosen_main(a) == "claude" or (isinstance(a.get("tools"), list) and "claude" in a["tools"])
+
+
+def codex_account():
+    if tool_path("codex") is None:
+        return {"ok": True, "state": "no-codex", "waiting": False}
+    return {"ok": True, "state": "signed-in" if codex_signed_in() else "signed-out", "waiting": CODEX_LOGIN["running"]}
+
+
+def codex_login():
+    """Start Codex's own sign-in (it opens the browser). The page polls for the result."""
+    exe = tool_path("codex")
+    if exe is None or CODEX_LOGIN["running"]:
+        return
+    CODEX_LOGIN["running"] = True
+
+    def work():
+        try:
+            subprocess.run([exe, "login"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=600)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        CODEX_LOGIN["running"] = False
+
+    threading.Thread(target=work, daemon=True).start()
+
+
+def write_codex_settings(workspace, never_asks, log):
+    """Codex's settings file, which the ChatGPT app and the terminal tool both read.
+
+    The app takes no never-ask flag, so the choice has to live here. Only two top-level
+    lines and one folder entry are touched; the two lines are marked so a later run can
+    take them back out, and a line the person wrote themselves is left to win.
+    """
+    path = Path.home() / ".codex" / "config.toml"
+    try:
+        text = path.read_text(encoding="utf-8-sig") if path.exists() else ""
+    except (OSError, UnicodeDecodeError):
+        log.append("Codex's settings file could not be read, so it was left alone. Ask for help.")
+        return
+    if text and not path.with_name("config.toml.before-setup").exists():
+        shutil.copy2(path, path.with_name("config.toml.before-setup"))
+    lines = text.splitlines()
+    first_table = next((i for i, line in enumerate(lines) if line.lstrip().startswith("[")), len(lines))
+    top = [line for line in lines[:first_table] if not line.rstrip().endswith(OURS.strip())]
+    rest = lines[first_table:]
+    if never_asks:
+        theirs = {line.split("=", 1)[0].strip() for line in top if "=" in line and not line.lstrip().startswith("#")}
+        wanted = {"approval_policy": "never", "sandbox_mode": "danger-full-access"}
+        top = [f'{key} = "{value}"{OURS}' for key, value in wanted.items() if key not in theirs] + top
+    # Codex records a trusted folder under its path, lower-cased on Windows, in single quotes.
+    folder = str(workspace).lower() if IS_WINDOWS else str(workspace)
+    if "'" not in folder and "\n" not in folder:
+        header = f"[projects.'{folder}']"
+        if header.lower() not in "\n".join(rest).lower():
+            rest += ["", header, 'trust_level = "trusted"']
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(top + rest).strip("\n") + "\n", encoding="utf-8")
+
+
+def write_agent_skills(workspace):
+    """Codex finds skills in .agents/skills. Copy the folder's skills there, and its commands as skills.
+
+    Codex has no custom slash commands any more, so /start, /save and the rest each become a
+    skill of the same name. Anything already there is kept.
+    """
+    target = workspace / ".agents" / "skills"
+    source = workspace / ".claude" / "skills"
+    if source.is_dir():
+        for skill in sorted(p for p in source.iterdir() if p.is_dir() and (p / "SKILL.md").is_file()):
+            copy_missing(skill, target / skill.name)
+    commands = workspace / ".claude" / "commands"
+    for command in sorted(commands.glob("*.md")) if commands.is_dir() else []:
+        dest = target / command.stem / "SKILL.md"
+        if dest.exists() or not re.fullmatch(r"[a-z0-9-]{1,40}", command.stem):
+            continue
+        text = command.read_text(encoding="utf-8", errors="ignore")
+        described = re.match(r"---\s*\n(.*?)\n---\s*\n", text, re.S)
+        about = re.search(r"^description:\s*(.+)$", described.group(1), re.M) if described else None
+        body = text[described.end():] if described else text
+        summary = (about.group(1).strip() if about else f"What to do when the person types /{command.stem}").replace('"', "'")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(f'---\nname: {command.stem}\ndescription: "{summary.rstrip(".")}. Use when the person types /{command.stem}."\n---\n\n'
+                        + body.lstrip("\n"), encoding="utf-8")
+
+
 def write_extras(a, workspace, name, extras, log):
     """Point each chosen assistant at this folder's notes and leave a file that opens it here."""
     for tool in EXTRAS:  # one that was unticked on a later run loses its file
@@ -1636,6 +1796,11 @@ def write_extras(a, workspace, name, extras, log):
         write_launcher(tool, workspace, never_asks)
     if "agy" in extras:
         write_agy_settings(workspace, never_asks, log)
+    if "codex" in extras:
+        # As the main assistant, Codex follows the Permissions choice, the way Claude does.
+        as_main = chosen_main(a) == "codex"
+        write_codex_settings(workspace, a.get("mode", "bypassPermissions") == "bypassPermissions" if as_main else never_asks, log)
+        write_agent_skills(workspace)
     names = [EXTRAS[tool]["short"] for tool in extras]
     log.append(" and ".join([", ".join(names[:-1]), names[-1]] if len(names) > 1 else names)
                + f" set up for this folder: open {'it' if len(names) == 1 else 'each'} with its \"Open ...\" file there"
@@ -1648,7 +1813,7 @@ def install_extra(tool):
     with INSTALL_LOCK:
         if any(r["id"] == tool for r in INSTALLS):
             return
-        INSTALLS.append({"id": tool, "label": spec["label"], "why": f"{spec['maker']}, in the terminal",
+        INSTALLS.append({"id": tool, "label": spec["label"], "why": f"{spec['maker']}, {spec.get('where', 'in the terminal')}",
                          "state": "waiting", "note": ""})
 
     def work():
@@ -1731,8 +1896,14 @@ class Handler(BaseHTTPRequestHandler):
                 "hasToken": bool(INSTALLER_TOKEN),
                 "user": os.environ.get("ASSISTANT_USER_NAME", ""),
                 "contact": CONTACT,
-                "tools": [{"id": t, "label": s["label"], "maker": s["maker"], "account": s["account"],
-                           "on": t in DEFAULT_TOOLS} for t, s in EXTRAS.items()],
+                "main": default_main(),
+                "tools": [dict(row, here=bool(DETECTED.get(row["id"], {}).get("installed")),
+                               signedIn=DETECTED.get(row["id"], {}).get("signedIn"), canMain=row["id"] in MAINS,
+                               on=row["on"] or bool(DETECTED.get(row["id"], {}).get("installed")) or row["id"] == default_main())
+                          for row in [{"id": "claude", "label": "Claude", "maker": "Anthropic's assistant, in the Claude desktop app",
+                                       "account": "your work Claude account", "on": False}]
+                          + [{"id": t, "label": s["label"], "maker": s["maker"] + ", " + s.get("where", "in the terminal"),
+                              "account": s["account"], "on": t in DEFAULT_TOOLS} for t, s in EXTRAS.items()]],
             })
         else:
             self.send({"ok": False}, code=404)
@@ -1760,6 +1931,11 @@ class Handler(BaseHTTPRequestHandler):
             tool = body.get("tool") if body.get("tool") in EXTRAS else ""
             self.send({"ok": bool(tool), "opened": bool(tool) and open_extra(tool, str(body.get("folder") or "")),
                        "installed": bool(tool) and tool_path(tool) is not None})
+        elif self.path == "/codex/status":
+            self.send(codex_account())
+        elif self.path == "/codex/login":
+            codex_login()
+            self.send(dict(codex_account(), waiting=True))
         elif self.path == "/connectors/status":
             self.send(connectors_status(bool(body.get("fresh"))))
         elif self.path == "/installs/status":
@@ -1800,18 +1976,22 @@ def main():
     args = parser.parse_args()
 
     if args.answers:
-        run_installs(blocking=True)
+        answers = json.loads(Path(args.answers).read_text(encoding="utf-8"))
+        run_installs(blocking=True, claude=uses_claude(answers))
         for row in INSTALLS:
             print(f"  {row['label']}: {row['state']}" + (f" ({row['note']})" if row["note"] else ""))
-        result = configure(json.loads(Path(args.answers).read_text(encoding="utf-8")))
+        result = configure(answers)
         for tool, job in EXTRA_JOBS.items():
             job.join()
             print(f"  {EXTRAS[tool]['label']}: " + _row(tool)["state"] + (f" ({_row(tool)['note']})" if _row(tool)["note"] else ""))
         print("\n".join(result["log"]))
         return
 
+    detect()  # before anything is installed: what the person already uses
     if not os.environ.get("ASSISTANT_SKIP_INSTALLS"):
-        run_installs()  # under way while the person fills in the page
+        # Under way while the person fills in the page. Claude's pieces wait for the choice
+        # when this person looks like they use something else.
+        run_installs(claude=default_main() == "claude")
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"\n  Setup is open in your browser: {url}\n  Leave this window open until setup says it is done.\n", flush=True)

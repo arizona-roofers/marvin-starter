@@ -3,6 +3,7 @@
 
     python check-install.py first    after the first run
     python check-install.py again    after a second run over a changed workspace
+    python check-install.py codex    after a run with Codex as the main assistant (folder ~/sol)
 """
 import json
 import os
@@ -33,6 +34,46 @@ def note(label, ok):
 def read(path):
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
+
+def finish():
+    print()
+    if notes:
+        print("Not done on this test machine: " + "; ".join(notes))
+    if failed:
+        print(str(len(failed)) + " check(s) failed: " + "; ".join(failed))
+        sys.exit(1)
+    print("All checks passed.")
+    sys.exit(0)
+
+
+def codex_settings():
+    text = read(home / ".codex" / "config.toml")
+    return text, text.split("\n[", 1)[0]
+
+
+if sys.argv[1:] == ["codex"]:
+    sol = home / "sol"
+    ending = ".cmd" if os.name == "nt" else ".command"
+    print("Codex as the main assistant")
+    check("workspace folder ~/sol", (sol / "CLAUDE.md").exists() and "SOL" in read(sol / "CLAUDE.md"))
+    check("Codex is pointed at the notes", "CLAUDE.md" in read(sol / "AGENTS.md"))
+    check("skills copied where Codex looks", (sol / ".agents" / "skills" / "roofr-api" / "SKILL.md").exists())
+    start = read(sol / ".agents" / "skills" / "start" / "SKILL.md")
+    check("/start and /save are skills", start.startswith("---\nname: start\ndescription:")
+          and (sol / ".agents" / "skills" / "save" / "SKILL.md").exists())
+    check("the folder's Open file opens the ChatGPT app", "codex app ." in read(sol / f"Open Codex{ending}"))
+    desktops = [home / "Desktop"] + sorted(home.glob("OneDrive*/Desktop"))
+    check("desktop shortcut opens the ChatGPT app", any("codex app ." in read(d / f"Sol{ending}") for d in desktops))
+    whole, top = codex_settings()
+    check("Codex never asks", 'approval_policy = "never"' in top and 'sandbox_mode = "danger-full-access"' in top)
+    check("Codex's settings are written once", whole.count("approval_policy") == 1)
+    check("Codex trusts the folder", "sol']" in whole.lower() and 'trust_level = "trusted"' in whole)
+    check("Claude's color modes left out", not (sol / ".mods").exists())
+    check("Roofr token in .env", "ROOFR_EXTERNAL_TOKEN=" in read(sol / ".env"))
+    spot = (Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "OpenAI" / "Codex" / "bin" / "codex.exe") if os.name == "nt" \
+        else (home / ".local" / "bin" / "codex")
+    note("Codex installed", shutil.which("codex") is not None or spot.exists())
+    finish()
 
 print("Workspace")
 check("starter downloaded to ~/.assistant-starter", (home / ".assistant-starter" / "install" / "wizard.py").exists())
@@ -89,7 +130,7 @@ local = Path(os.environ.get("LOCALAPPDATA", ""))
 ending = ".cmd" if os.name == "nt" else ".command"
 for label, command, flag, windows_spot, other_spot in (
         ("Antigravity", "agy", "", local / "agy" / "bin" / "agy.exe", home / ".local" / "bin" / "agy"),
-        ("Codex", "codex", "--dangerously-bypass-approvals-and-sandbox",
+        ("Codex", "codex app .", "",
          local / "Programs" / "OpenAI" / "Codex" / "bin" / "codex.exe", home / ".local" / "bin" / "codex"),
         ("Grok", "grok", "--always-approve", home / ".grok" / "bin" / "grok.exe", home / ".grok" / "bin" / "grok")):
     opener = read(work / f"Open {label}{ending}")
@@ -98,7 +139,12 @@ for label, command, flag, windows_spot, other_spot in (
         check(f"{label} never asks", flag in opener)
     if os.name != "nt":
         check(f"{label}'s file can be run", os.access(work / f"Open {label}{ending}", os.X_OK))
-    note(f"{label} installed", shutil.which(command) is not None or (windows_spot if os.name == "nt" else other_spot).exists())
+    note(f"{label} installed", shutil.which(command.split()[0]) is not None or (windows_spot if os.name == "nt" else other_spot).exists())
+whole, top = codex_settings()
+check("Codex never asks, in the app too", 'approval_policy = "never"' in top and 'sandbox_mode = "danger-full-access"' in top)
+check("Codex trusts the assistant's folder", "friday']" in whole.lower() and 'trust_level = "trusted"' in whole)
+check("Codex's settings are written once", whole.count("approval_policy") == 1)
+check("Codex has the skills too", (work / ".agents" / "skills" / "roofr-api" / "SKILL.md").exists())
 
 print("Shortcut and tools")
 desktops = [home / "Desktop"] + sorted(home.glob("OneDrive*/Desktop"))
@@ -142,10 +188,4 @@ if sys.argv[1:] == ["again"]:
     check("settings backup kept", (home / ".claude" / "settings.json.before-setup").exists())
     check("token still there once", read(work / ".env").count("ROOFR_EXTERNAL_TOKEN=") == 1)
 
-print()
-if notes:
-    print("Not done on this test machine: " + "; ".join(notes))
-if failed:
-    print(str(len(failed)) + " check(s) failed: " + "; ".join(failed))
-    sys.exit(1)
-print("All checks passed.")
+finish()

@@ -7,9 +7,11 @@
 --contact (or ASSISTANT_HELP_CONTACT in the environment or .env) is who setup tells
 people to ask when they are stuck. Without it, setup says "your manager".
 
---tools (or ASSISTANT_DEFAULT_TOOLS) is which assistants start ticked beside Claude on
-the "Which assistants do you want?" page: any of gemini, codex, grok, separated by
-commas. Without it, only Claude is ticked. People can still tick or untick any of them.
+--tools (or ASSISTANT_DEFAULT_TOOLS) is which assistants start ticked on the "Which
+assistants do you use?" page: any of claude, gemini, codex, grok, separated by commas.
+The first of claude or codex in the list is offered as the main assistant. Without it,
+setup ticks whatever it finds on the computer, and Claude if it finds nothing. People
+can still tick or untick any of them.
 
 Writes to dist/ (never committed):
     Install Assistant.cmd          Windows: double-click
@@ -116,7 +118,7 @@ def main():
     wanted = [w.strip().lower() for w in find_setting("ASSISTANT_DEFAULT_TOOLS", args.tools).split(",") if w.strip()]
     if set(wanted) - known:
         sys.exit("Unknown assistant in --tools: " + ", ".join(sorted(set(wanted) - known)) + ". Use gemini, codex or grok.")
-    tools = ",".join(w for w in wanted if w != "claude")
+    tools = ",".join(wanted)
 
     win_pack, count = pack_lines(pack, "::PACK:") if pack.is_dir() else ("", 0)
     mac_pack = pack_lines(pack, "#PACK:")[0] if pack.is_dir() else ""
@@ -135,7 +137,7 @@ def main():
     with zipfile.ZipFile(mac_zip, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(info, MAC.format(token=token, raw=RAW, contact=contact, tools=tools) + mac_pack)
 
-    print(f"Built:\n  {windows}\n  {mac_zip}\n\nHelp contact: {contact}\nTicked beside Claude: {tools or 'nothing'}\nBoth hold the Roofr token"
+    print(f"Built:\n  {windows}\n  {mac_zip}\n\nHelp contact: {contact}\nTicked to start with: {tools or 'whatever setup finds on the computer'}\nBoth hold the Roofr token"
           + (f" and the company knowledge pack ({count} files)" if count else " (no knowledge pack found)")
           + ". Share them with staff only.")
 
